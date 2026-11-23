@@ -1,0 +1,3467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>복권 시뮬레이터</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* =====================================================================
+           전역 스타일 & 디자인 토큰
+           ===================================================================== */
+        :root {
+            --bg-top: #0f172a;
+            --bg-mid: #1e1b4b;
+            --bg-bottom: #311042;
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --ink-main: #0f172a;
+            --ink-sub: #475569;
+            --gold-1: #fef08a;
+            --gold-2: #f59e0b;
+            --gold-3: #b45309;
+            --accent: #4f46e5;
+            --accent-dark: #3730a3;
+            --win-bg: #ecfdf5;
+            --win-border: #10b981;
+            --win-ink: #065f46;
+            --miss-bg: #f8fafc;
+            --miss-border: #cbd5e1;
+            --miss-ink: #475569;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at top, #3b2667 0%, var(--bg-mid) 45%, var(--bg-top) 100%);
+            color: var(--ink-main);
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+
+        .page-wrap {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 20px 16px 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            overflow-y: visible;
+            touch-action: pan-y;
+        }
+
+        /* 상단 헤더 & 자산/전광판 */
+        .top-header {
+            width: 100%;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 999px;
+            background: rgba(251, 191, 36, 0.16);
+            border: 1px solid rgba(251, 191, 36, 0.45);
+            color: #fde68a;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .game-title {
+            margin: 10px 0 6px;
+            font-size: clamp(24px, 5vw, 34px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+        }
+
+        .game-subtitle {
+            margin: 0;
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+
+        .stats-bar {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(10px);
+            border-radius: 18px;
+            padding: 12px 10px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            margin-top: 4px;
+            font-family: 'Fredoka', 'Noto Sans KR', sans-serif;
+            font-size: clamp(14px, 3.4vw, 18px);
+            font-weight: 700;
+            color: #fde047;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 등수표 안내 스트립 */
+        .prize-table-strip {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 18px;
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            color: #f8fafc;
+            font-size: 11px;
+        }
+
+        @media (min-width: 520px) {
+            .prize-table-strip {
+                grid-template-columns: repeat(6, 1fr);
+                text-align: center;
+            }
+        }
+
+        .prize-chip {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 6px 6px;
+            line-height: 1.35;
+        }
+
+        .prize-chip strong {
+            display: block;
+            color: #fde047;
+            font-size: 11px;
+        }
+
+        .prize-chip span {
+            color: #e2e8f0;
+            font-size: 10.5px;
+        }
+
+        .prize-table-corner-odds {
+            grid-column: 1 / -1;
+            margin-top: 2px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.14);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .prize-table-corner-odds strong {
+            color: #fde68a;
+            font-weight: 700;
+        }
+
+        /* 복권 메인 카드 */
+        .ticket-shell {
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 28px;
+            padding: 18px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(251, 191, 36, 0.55);
+        }
+
+        .ticket-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 0 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ink-sub);
+        }
+
+        .ticket-serial {
+            font-family: 'Fredoka', monospace;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        /* 반응형 스크래치 캔버스 컨테이너 */
+        .canvas-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 11;
+            min-height: 290px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.16), 0 10px 24px rgba(15, 23, 42, 0.18);
+            border: 2px solid #f59e0b;
+            background: #fffbeb;
+        }
+
+        .canvas-stage canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #scratchCanvas {
+            touch-action: pan-y;
+            cursor: grab;
+        }
+
+        #scratchCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* 결과 배너 */
+        .result-banner {
+            margin-top: 14px;
+            border-radius: 18px;
+            padding: 14px 16px;
+            background: var(--miss-bg);
+            border: 1.5px solid var(--miss-border);
+            color: var(--miss-ink);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: all 0.25s ease;
+        }
+
+        .result-banner.win {
+            background: var(--win-bg);
+            border-color: var(--win-border);
+            color: var(--win-ink);
+            box-shadow: 0 8px 22px rgba(16, 185, 129, 0.18);
+        }
+
+        .result-banner.miss {
+            background: #fff1f2;
+            border-color: #fda4af;
+            color: #9f1239;
+        }
+
+        .result-main {
+            font-size: clamp(14px, 3.6vw, 17px);
+            font-weight: 900;
+            line-height: 1.35;
+        }
+
+        .result-sub {
+            margin-top: 3px;
+            font-size: 12px;
+            opacity: 0.88;
+            font-weight: 500;
+        }
+
+        /* 캔버스 외부 하단 액션 버튼 */
+        .action-row {
+            width: 100%;
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .game-btn {
+            position: relative;
+            border: none;
+            border-radius: 16px;
+            padding: 14px 16px;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+        }
+
+        .game-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .game-btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.985);
+        }
+
+        .game-btn:disabled {
+            opacity: 0.48;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
+            color: #1e1b4b;
+            box-shadow: 0 6px 0 #92400e, 0 12px 24px rgba(245, 158, 11, 0.35);
+            border: 1px solid #fde68a;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #3730a3 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #1e1b4b, 0 12px 24px rgba(79, 70, 229, 0.32);
+            border: 1px solid #a5b4fc;
+        }
+
+        .btn-work {
+            width: 100%;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 60%, #c2410c 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #7c2d12, 0 12px 24px rgba(234, 88, 12, 0.32);
+            border: 1px solid #fdba74;
+        }
+
+        .btn-emerald {
+            background: linear-gradient(135deg, #10b981 0%, #059669 65%, #047857 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #064e3b, 0 12px 22px rgba(16, 185, 129, 0.3);
+            border: 1px solid #6ee7b7;
+        }
+
+        /* 뒤주 방지용 공사장 노가다 카드 */
+        .work-card {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 26px;
+            padding: 18px;
+            border: 2px solid rgba(251, 146, 60, 0.6);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+        }
+
+        .work-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .work-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .work-sub {
+            margin: 3px 0 0;
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.45;
+        }
+
+        .rescue-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fdba74;
+            white-space: nowrap;
+        }
+
+        .rescue-pill.urgent {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+            animation: pulseUrgent 1s infinite;
+        }
+
+        @keyframes pulseUrgent {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+
+        /* =====================================================================
+           전체 화면 5초 공사장 노가다 컷씬 오버레이
+           ===================================================================== */
+        .cutscene-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px 20px 34px;
+            background: linear-gradient(180deg, #090d16 0%, #1c1917 42%, #292524 100%);
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .cutscene-overlay.active {
+            display: flex;
+        }
+
+        .cutscene-sky {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 78% 18%, rgba(251, 146, 60, 0.22), transparent 42%),
+                repeating-linear-gradient(
+                    -45deg,
+                    rgba(245, 158, 11, 0.04) 0px,
+                    rgba(245, 158, 11, 0.04) 18px,
+                    transparent 18px,
+                    transparent 36px
+                );
+            pointer-events: none;
+        }
+
+        .cutscene-top {
+            position: relative;
+            z-index: 2;
+            max-width: 680px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .cutscene-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: rgba(249, 115, 22, 0.22);
+            border: 1px solid rgba(251, 146, 60, 0.6);
+            color: #fed7aa;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .cutscene-timer {
+            font-family: 'Fredoka', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: #fde047;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 6px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(253, 224, 71, 0.35);
+        }
+
+        .cutscene-stage {
+            position: relative;
+            z-index: 2;
+            max-width: 680px;
+            width: 100%;
+            margin: auto;
+            height: 290px;
+            border-radius: 28px;
+            border: 2px solid rgba(251, 146, 60, 0.45);
+            background: linear-gradient(180deg, #1e293b 0%, #334155 58%, #44403c 58%, #292524 100%);
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        .crane-arm {
+            position: absolute;
+            top: 24px;
+            left: 12%;
+            width: 72%;
+            height: 12px;
+            background: repeating-linear-gradient(90deg, #f59e0b 0 18px, #1e293b 18px 36px);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .crane-trolley {
+            position: absolute;
+            top: 36px;
+            left: 25%;
+            width: 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: trolleyMove 2.5s ease-in-out infinite alternate;
+        }
+
+        .crane-cable {
+            width: 3px;
+            height: 82px;
+            background: #e2e8f0;
+        }
+
+        .crane-hook {
+            font-size: 26px;
+            filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
+        }
+
+        @keyframes trolleyMove {
+            0% { transform: translateX(0px); }
+            100% { transform: translateX(150px); }
+        }
+
+        .building-stack {
+            position: absolute;
+            bottom: 72px;
+            right: 12%;
+            width: 124px;
+            height: 132px;
+            border: 2px dashed rgba(253, 224, 71, 0.55);
+            border-bottom: 4px solid #f59e0b;
+            background: rgba(15, 23, 42, 0.35);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 6px;
+            gap: 5px;
+        }
+
+        .brick-row {
+            height: 16px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ea580c, #f97316);
+            box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        .worker-rig {
+            position: absolute;
+            bottom: 64px;
+            left: 16%;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .worker-avatar {
+            font-size: 56px;
+            line-height: 1;
+            transform-origin: bottom center;
+            animation: swingPickaxe 0.42s ease-in-out infinite alternate;
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.55));
+        }
+
+        .worker-tool {
+            font-size: 38px;
+            line-height: 1;
+            margin-bottom: 8px;
+            transform-origin: bottom left;
+            animation: strikeTool 0.42s ease-in-out infinite alternate;
+        }
+
+        @keyframes swingPickaxe {
+            0% { transform: rotate(-10deg) translateY(0); }
+            100% { transform: rotate(9deg) translateY(3px); }
+        }
+
+        @keyframes strikeTool {
+            0% { transform: rotate(-32deg); }
+            100% { transform: rotate(24deg); }
+        }
+
+        .spark-burst {
+            position: absolute;
+            bottom: 84px;
+            left: 34%;
+            font-size: 28px;
+            animation: sparkFlash 0.42s ease-in-out infinite alternate;
+        }
+
+        @keyframes sparkFlash {
+            0% { opacity: 0.2; transform: scale(0.75); }
+            100% { opacity: 1; transform: scale(1.25); }
+        }
+
+        .ground-strip {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: #292524;
+            border-top: 4px solid #fbbf24;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fde68a;
+        }
+
+        .cutscene-bottom {
+            position: relative;
+            z-index: 2;
+            max-width: 680px;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .cutscene-caption {
+            font-size: 18px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .cutscene-sub {
+            font-size: 13px;
+            color: #fed7aa;
+            margin-bottom: 14px;
+        }
+
+        .cutscene-bar-track {
+            width: 100%;
+            height: 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cutscene-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #fb923c, #fde047, #22c55e);
+            transition: width 0.12s linear;
+        }
+
+        /* =====================================================================
+           1조 원 건물 & 회사 설립 · 경영 카드
+           ===================================================================== */
+        .empire-card {
+            width: 100%;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 26px;
+            padding: 20px;
+            border: 2px solid rgba(99, 102, 241, 0.45);
+            box-shadow: 0 20px 46px rgba(0, 0, 0, 0.38);
+        }
+
+        .empire-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .empire-title {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .empire-sub {
+            margin: 4px 0 0;
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+        }
+
+        .empire-tag {
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+        }
+
+        .empire-tag.built {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #6ee7b7;
+        }
+
+        .empire-progress-box {
+            margin-top: 14px;
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .empire-progress-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .empire-track {
+            width: 100%;
+            height: 12px;
+            border-radius: 999px;
+            background: #cbd5e1;
+            overflow: hidden;
+        }
+
+        .empire-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4f46e5, #06b6d4, #10b981);
+            transition: width 0.3s ease;
+        }
+
+        .found-form {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        @media (min-width: 520px) {
+            .found-form {
+                flex-direction: row;
+            }
+        }
+
+        .company-input {
+            flex: 1;
+            padding: 13px 16px;
+            border-radius: 15px;
+            border: 1.5px solid #cbd5e1;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            background: #ffffff;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .company-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14);
+        }
+
+        .company-dashboard {
+            margin-top: 14px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #ffffff;
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid rgba(165, 180, 252, 0.35);
+        }
+
+        .company-banner-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .tower-visual {
+            font-size: 36px;
+            line-height: 1.1;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 10px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .company-name-big {
+            font-size: 18px;
+            font-weight: 900;
+            color: #fde047;
+        }
+
+        .company-meta {
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-top: 3px;
+        }
+
+        .company-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .metric-box {
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            padding: 10px 12px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .metric-val {
+            font-family: 'Fredoka', 'Noto Sans KR', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #6ee7b7;
+            margin-top: 3px;
+        }
+
+        .company-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        /* 추가 컨텐츠: VIP 럭키 룰렛 & 사업부/업적 섹션 */
+        .extra-card {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 26px;
+            padding: 18px;
+            border: 2px solid rgba(236, 72, 153, 0.42);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+        }
+
+        .roulette-panel {
+            margin-top: 12px;
+            background: #fdf2f8;
+            border: 1.5px solid #fbcfe8;
+            border-radius: 18px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .roulette-dial {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #fbbf24 0deg 72deg,
+                #34d399 72deg 144deg,
+                #60a5fa 144deg 216deg,
+                #f472b6 216deg 288deg,
+                #a78bfa 288deg 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 24px rgba(190, 24, 93, 0.25), inset 0 0 0 6px #ffffff;
+            transition: transform 1.8s cubic-bezier(0.18, 0.88, 0.24, 1);
+        }
+
+        .roulette-core {
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: #0f172a;
+            color: #fde047;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.15;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .roulette-odds-list {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        @media (min-width: 520px) {
+            .roulette-odds-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .roulette-odds-item {
+            background: #ffffff;
+            border: 1px solid #f9a8d4;
+            border-radius: 12px;
+            padding: 7px 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .roulette-odds-item strong {
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .roulette-odds-item span {
+            font-family: 'Fredoka', 'Noto Sans KR', sans-serif;
+            color: #be185d;
+            font-weight: 700;
+        }
+
+        .division-grid {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        @media (min-width: 520px) {
+            .division-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .division-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .division-name {
+            font-size: 13px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .division-desc {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .achieve-list {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .achieve-chip {
+            padding: 6px 11px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+        }
+
+        .achieve-chip.done {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #6ee7b7;
+        }
+
+        /* 상점 & 비밀 카지노 스타일 */
+        .shop-card {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 26px;
+            padding: 18px;
+            border: 2px solid rgba(14, 165, 233, 0.45);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+        }
+
+        .shop-grid {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        @media (min-width: 520px) {
+            .shop-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .shop-item {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .shop-item-name {
+            font-size: 13px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .shop-item-desc {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 2px;
+            line-height: 1.4;
+        }
+
+        .secret-gate-box {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #0f172a;
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        @media (min-width: 520px) {
+            .secret-gate-box {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .secret-gate-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .secret-pw-input {
+            width: 145px;
+            padding: 9px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fde047;
+            font-family: 'Fredoka', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .casino-card {
+            width: 100%;
+            background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
+            color: #ffffff;
+            border-radius: 26px;
+            padding: 20px;
+            border: 2px solid #f59e0b;
+            box-shadow: 0 22px 52px rgba(0, 0, 0, 0.55);
+        }
+
+        .slot-machine-box {
+            width: 100%;
+            background: linear-gradient(180deg, #27272a 0%, #09090b 100%);
+            border: 2px solid rgba(251, 191, 36, 0.55);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.7);
+        }
+
+        .slot-reels-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 340px;
+        }
+
+        .slot-reel-cell {
+            height: 86px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+            border: 2px solid #f59e0b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.18), 0 6px 14px rgba(0, 0, 0, 0.45);
+            transition: transform 0.14s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .slot-reel-cell.spinning {
+            border-color: #fde047;
+            box-shadow: 0 0 18px rgba(253, 224, 71, 0.55), inset 0 4px 10px rgba(0, 0, 0, 0.22);
+            transform: translateY(-2px);
+        }
+
+        .slot-reel-cell.locked {
+            border-color: #10b981;
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+        }
+
+        .slot-reel-emoji {
+            font-size: 32px;
+            line-height: 1.05;
+        }
+
+        .slot-reel-label {
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 900;
+            color: #78350f;
+        }
+
+        .casino-odds-item {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 7px 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11.5px;
+        }
+
+        .casino-odds-item strong {
+            color: #fef08a;
+            font-weight: 800;
+        }
+
+        .casino-odds-item span {
+            font-family: 'Fredoka', 'Noto Sans KR', sans-serif;
+            color: #fbbf24;
+            font-weight: 700;
+        }
+
+        .toast-notice {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1200;
+            background: rgba(15, 23, 42, 0.94);
+            color: #ffffff;
+            border: 1px solid rgba(253, 224, 71, 0.45);
+            padding: 11px 18px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            max-width: 92vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .toast-notice.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <!-- 상단 타이틀 -->
+        <header class="top-header">
+            <div class="badge-pill">
+                <span>🎟️</span>
+                <span>복권 시뮬레이터 · 70% 자동 완료 · 비밀 카지노 0721</span>
+            </div>
+            <h1 class="game-title">복권 시뮬레이터</h1>
+            <p class="game-subtitle">
+                복권을 70% 긁으면 100% 자동 완료됩니다! 지하 비밀 카지노는 비밀번호 <strong>0721</strong> 입력 시 열립니다.
+            </p>
+        </header>
+
+        <!-- 자산 / 복권가 / 누적 당첨금 -->
+        <section class="stats-bar" aria-label="플레이어 현황">
+            <div class="stat-card">
+                <div class="stat-label">보유 자산</div>
+                <div id="balanceDisplay" class="stat-value">₩5,000</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">복권 구매가</div>
+                <div id="ticketPriceDisplay" class="stat-value">₩1,000</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">누적 복권 당첨</div>
+                <div id="totalWonDisplay" class="stat-value">₩0</div>
+            </div>
+        </section>
+
+        <!-- 등수별 상금표 -->
+        <section id="prizeTableStrip" class="prize-table-strip" aria-label="등수별 상금 안내">
+            <div class="prize-chip"><strong>1등</strong><span id="prize1Label">10억 원</span></div>
+            <div class="prize-chip"><strong>2등</strong><span id="prize2Label">1억 원</span></div>
+            <div class="prize-chip"><strong>3등</strong><span id="prize3Label">100만 원</span></div>
+            <div class="prize-chip"><strong>4등</strong><span id="prize4Label">5천 원</span></div>
+            <div class="prize-chip"><strong>5등</strong><span id="prize5Label">1천 원</span></div>
+            <div class="prize-chip"><strong>꽝</strong><span>0원</span></div>
+            <div class="prize-table-corner-odds" title="일반 복권 및 10연차 당첨 확률 안내">
+                <span>일반: <strong>1등 0.15% · 2등 0.85% · 3등 4% · 4등 11% · 5등 23% · 꽝 61%</strong></span>
+                <span>10연차: <strong>1등 0.08% · 2등 0.52% · 3등 2.4% · 4등 8% · 5등 19% · 꽝 70%</strong></span>
+            </div>
+        </section>
+
+        <!-- 스크래치 복권 카드 -->
+        <section class="ticket-shell" aria-label="스크래치 복권">
+            <div class="ticket-meta">
+                <span>복권 등급 <span id="ticketTierBadge" class="ticket-serial">Lv.1 일반 복권 (1배)</span> · 번호 <span id="ticketNoDisplay" class="ticket-serial">#0001</span></span>
+                <span>긁힌 면적 <strong id="scratchPercentDisplay">0%</strong></span>
+            </div>
+
+            <div class="canvas-stage" id="canvasStage">
+                <canvas id="prizeCanvas"></canvas>
+                <canvas id="scratchCanvas"></canvas>
+            </div>
+
+            <div id="resultBanner" class="result-banner" role="status" aria-live="polite">
+                <div>
+                    <div id="resultMainText" class="result-main">마우스나 손가락으로 금빛 복권을 슥슥 문질러 보세요!</div>
+                    <div id="resultSubText" class="result-sub">70% 이상 긁으면 100% 자동 완료되며 등수 결과가 정산됩니다.</div>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button type="button" id="autoScratchBtn" class="game-btn btn-secondary" onclick="autoScratchTicket()">
+                    <span>✨</span>
+                    <span>자동 긁기</span>
+                </button>
+                <button type="button" id="buyTicketBtn" class="game-btn btn-primary" onclick="buyNewTicket()">
+                    <span>🎟️</span>
+                    <span id="buyTicketBtnLabel">새 복권 구매 (₩1,000)</span>
+                </button>
+            </div>
+
+            <div style="margin-top:10px;">
+                <button type="button" id="upgradeTicketBtn" class="game-btn btn-emerald" style="width:100%;" onclick="upgradeLotteryTier()">
+                    <span>🔥</span>
+                    <span id="upgradeTicketBtnLabel">더 비싼 복권으로 강화 (₩10,000 · 상금 10배)</span>
+                </button>
+            </div>
+
+            <div style="margin-top:10px;">
+                <button type="button" id="bulkScratchBtn" class="game-btn btn-secondary" style="width:100%;" onclick="runBulkScratchTickets(10)">
+                    <span>⚡</span>
+                    <span id="bulkScratchBtnLabel">복권 10장 따다닥 연속 긁기 (₩10,000)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 연속 따다닥 복권 긁기 스트립 -->
+        <section id="rapidScratchStreamCard" class="empire-card" style="display:none;" aria-label="연속 복권 긁기 진행 현황">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title">⚡ 따다닥! 복권 연속 긁기 컷씬</h2>
+                    <p id="rapidScratchStatusText" class="empire-sub">복권을 한 장씩 긁어 등수를 확인하고 있습니다...</p>
+                </div>
+                <span id="rapidScratchCounterBadge" class="empire-tag">0 / 10</span>
+            </div>
+            <div id="rapidScratchLiveStage" style="margin-top:12px;padding:12px 14px;border-radius:18px;background:#0f172a;color:#ffffff;border:1.5px solid #f59e0b;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div>
+                    <div id="rapidLiveTicketTitle" style="font-size:13px;font-weight:900;color:#fde047;">복권 #0000 긁는 중...</div>
+                    <div id="rapidLiveNumbersText" style="font-size:12px;color:#e2e8f0;margin-top:3px;">행운 번호 · 후보 칸 대기 중</div>
+                </div>
+                <div id="rapidLiveOutcomePill" style="padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.12);font-size:12px;font-weight:800;color:#fde68a;">
+                    따다닥 긁는 중
+                </div>
+            </div>
+            <div id="rapidScratchStrip" style="margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
+        </section>
+
+        <!-- 뒤주 방지용 5초 공사장 막노동 카드 -->
+        <section class="work-card" aria-label="공사장 막노동">
+            <div class="work-header">
+                <div>
+                    <h2 class="work-title">⛏️ 공사장 막노동 (5초 현장 컷씬)</h2>
+                    <p class="work-sub">
+                        잔액이 부족할 때 출근하세요! 5초 동안 전체 화면 공사장 작업을 마치면 일당 <strong>₩1,000</strong>(특급 안전모 보유 시 +₩2,000)을 지급합니다.
+                    </p>
+                </div>
+                <span id="rescueBadge" class="rescue-pill">뒤주 안전</span>
+            </div>
+            <button type="button" id="startWorkBtn" class="game-btn btn-work" onclick="startConstructionCutscene()">
+                <span>🚧</span>
+                <span>5초 공사장 막노동 출근하기 (+₩1,000)</span>
+            </button>
+        </section>
+
+        <!-- 1조 원 건물 & 회사 설립 · 경영 카드 -->
+        <section class="empire-card" aria-label="1조 빌딩 및 회사 경영">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title">🏙️ 1조 원 빌딩 &amp; 회사 설립 · 매각</h2>
+                    <p class="empire-sub">
+                        ₩1,000,000,000,000(1조 원)을 달성하면 나만의 초대형 랜드마크 사옥과 회사를 설립할 수 있으며, 키운 회사를 언제든 매각할 수도 있습니다.
+                    </p>
+                </div>
+                <span id="empireStatusBadge" class="empire-tag">설립 준비 중</span>
+            </div>
+
+            <div class="empire-progress-box">
+                <div class="empire-progress-head">
+                    <span id="empireProgressText">보유 0 / 목표 1조 원</span>
+                    <span id="empireProgressPct">0.0%</span>
+                </div>
+                <div class="empire-track">
+                    <div id="empireProgressFill" class="empire-fill"></div>
+                </div>
+            </div>
+
+            <div id="foundingPanel" class="found-form">
+                <input type="text" id="companyNameInput" maxlength="24" placeholder="회사 이름을 입력하세요 (예: 골든 1조 타워)" class="company-input">
+                <button type="button" id="foundCompanyBtn" class="game-btn btn-primary" onclick="foundThousandBillionCompany()">
+                    <span>🏢</span>
+                    <span>1조 설립</span>
+                </button>
+            </div>
+
+            <div id="companyDashboard" class="company-dashboard" style="display:none;">
+                <div class="company-banner-row">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div class="tower-visual">🏙️</div>
+                        <div>
+                            <div id="companyDisplayName" class="company-name-big">골든 1조 타워</div>
+                            <div id="companyBuildingDesc" class="company-meta">1조 원 랜드마크 타워 · Lv.1</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="company-metrics">
+                    <div class="metric-box">
+                        <div class="metric-label">5초당 회사 수익</div>
+                        <div id="companyIncomeDisplay" class="metric-val">+1억 원 / 5초</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">미수령 누적 수익</div>
+                        <div id="companyPendingDisplay" class="metric-val">0원</div>
+                    </div>
+                </div>
+
+                <div class="company-actions">
+                    <button type="button" class="game-btn btn-emerald" onclick="collectCompanyRevenue()">
+                        <span>💰</span>
+                        <span>회사 수익 받기</span>
+                    </button>
+                    <button type="button" id="upgradeCompanyBtn" class="game-btn btn-secondary" onclick="upgradeCompany()">
+                        <span>⬆️</span>
+                        <span id="upgradeCompanyLabel">사옥 강화 (1,000억 원)</span>
+                    </button>
+                </div>
+
+                <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <button type="button" id="sellCompanyBtn" class="game-btn btn-work" onclick="sellCompany()">
+                        <span>🤝</span>
+                        <span id="sellCompanyLabel">회사 매각 (2확인)</span>
+                    </button>
+                    <button type="button" id="dumpCompanyBtn" class="game-btn btn-secondary" onclick="sellCompanyImmediate()">
+                        <span>⚡</span>
+                        <span id="dumpCompanyLabel">회사 바로 매도</span>
+                    </button>
+                </div>
+
+                <div class="division-grid">
+                    <div class="division-item">
+                        <div>
+                            <div class="division-name">🤖 AI·로봇 연구소</div>
+                            <div class="division-desc">5초당 회사 수익 +2억 원 추가</div>
+                        </div>
+                        <button type="button" id="buyAiDivBtn" class="game-btn btn-secondary" onclick="buyCompanyDivision('ai')">도입 (₩300억)</button>
+                    </div>
+                    <div class="division-item">
+                        <div>
+                            <div class="division-name">🚀 우주·항공 모빌리티</div>
+                            <div class="division-desc">5초당 회사 수익 +6억 원 추가</div>
+                        </div>
+                        <button type="button" id="buySpaceDivBtn" class="game-btn btn-secondary" onclick="buyCompanyDivision('space')">도입 (₩800억)</button>
+                    </div>
+                </div>
+
+                <div class="division-item" style="margin-top:10px;background:rgba(255,255,255,0.08);border-color:rgba(253,224,71,0.35);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                        <div>
+                            <div class="division-name" style="color:#fde047;">🧑‍💼 복권 긁는 전담 직원</div>
+                            <div id="lotteryStaffDesc" class="division-desc" style="color:#e2e8f0;">미고용 · 고용 시 주기적으로 복권을 자동 긁어 당첨금을 정산합니다.</div>
+                        </div>
+                        <span id="lotteryStaffStatusBadge" class="empire-tag" style="background:rgba(255,255,255,0.12);color:#fde68a;border-color:rgba(253,224,71,0.35);">대기 중</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+                        <button type="button" id="hireStaffBtn" class="game-btn btn-emerald" onclick="hireOrUpgradeLotteryStaff()">직원 고용 (₩50,000)</button>
+                        <button type="button" id="toggleStaffAutoBtn" class="game-btn btn-secondary" onclick="toggleLotteryStaffActive()">근무 중지/재개</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="achievementsBox" class="achieve-list"></div>
+        </section>
+
+        <!-- VIP 럭키 룰렛 카드 -->
+        <section class="extra-card" aria-label="VIP 럭키 룰렛">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title">🎡 VIP 럭키 룰렛 (참가비 ₩5,000)</h2>
+                    <p class="empire-sub">확률표에 따라 소액 당첨, 다음 복권 1회 무료권, 또는 꽝이 나오는 일반 룰렛입니다.</p>
+                </div>
+                <span id="rouletteResultTag" class="empire-tag">대기 중</span>
+            </div>
+
+            <div class="roulette-panel">
+                <div id="rouletteDial" class="roulette-dial">
+                    <div class="roulette-core">LUCKY<br>SPIN</div>
+                </div>
+                <div id="rouletteOddsList" class="roulette-odds-list"></div>
+                <button type="button" id="spinRouletteBtn" class="game-btn btn-primary" style="width:100%;" onclick="spinLuckyRoulette()">
+                    <span>🎡</span>
+                    <span>럭키 룰렛 돌리기 (₩5,000)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 황금 만물상점 & 지하 비밀 카지노 입장 게이트 -->
+        <section class="shop-card" aria-label="황금 만물상점">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title">🛍️ 황금 만물상점</h2>
+                    <p class="empire-sub">복권과 막노동 효율을 높이는 아이템을 구매하세요. (비밀 카지노 비번은 0721)</p>
+                </div>
+                <span id="shopOwnedBadge" class="empire-tag">보유 0/3</span>
+            </div>
+
+            <div class="shop-grid">
+                <div class="shop-item">
+                    <div>
+                        <div class="shop-item-name">🪙 순금 스크래치 코인</div>
+                        <div class="shop-item-desc">긁기 반경 약 1.9배 확대</div>
+                    </div>
+                    <button type="button" id="buyItemCoinBtn" class="game-btn btn-secondary" onclick="buyShopItem('coin')">구매 (₩10,000)</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <div class="shop-item-name">⛑️ 특급 안전모</div>
+                        <div class="shop-item-desc">막노동 일당 +₩2,000 추가</div>
+                    </div>
+                    <button type="button" id="buyItemHelmetBtn" class="game-btn btn-secondary" onclick="buyShopItem('helmet')">구매 (₩15,000)</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <div class="shop-item-name">🍀 황금 네잎클로버</div>
+                        <div class="shop-item-desc">복권 당첨금 +10%</div>
+                    </div>
+                    <button type="button" id="buyItemCloverBtn" class="game-btn btn-secondary" onclick="buyShopItem('clover')">구매 (₩100,000)</button>
+                </div>
+            </div>
+
+            <div class="secret-gate-box">
+                <div>
+                    <div style="font-size:13px;font-weight:900;color:#fde047;">🕶️ 지하 비밀 카지노 출입구</div>
+                    <div id="secretCasinoHint" style="font-size:11.5px;color:#cbd5e1;margin-top:2px;">비밀번호 4자리(0721)를 입력해 지하 카지노를 여세요.</div>
+                </div>
+                <div class="secret-gate-row">
+                    <input type="password" id="casinoPasswordInput" maxlength="10" placeholder="비밀번호" class="secret-pw-input">
+                    <button type="button" class="game-btn btn-primary" style="padding:10px 14px;font-size:12px;" onclick="unlockSecretCasino()">입장</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 지하 비밀 카지노 (1회 천만 원 · 1,000억 0.5%) -->
+        <section id="secretCasinoSection" class="casino-card" style="display:none;" aria-label="지하 비밀 카지노">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title" style="color:#fde047;">🎰 지하 비밀 슬롯머신 (1회 ₩10,000,000)</h2>
+                    <p class="empire-sub" style="color:#d4d4d8;">한 번 돌릴 때마다 천만 원이 차감됩니다! 1,000억 잭팟 확률은 0.5%입니다.</p>
+                </div>
+                <span id="casinoResultTag" class="empire-tag" style="background:rgba(245,158,11,0.18);color:#fde047;border-color:rgba(251,191,36,0.5);">VIP 입장 완료</span>
+            </div>
+
+            <div class="roulette-panel" style="background:rgba(255,255,255,0.04);border-color:rgba(251,191,36,0.35);margin-top:14px;">
+                <div class="slot-machine-box" aria-label="3릴 슬롯머신">
+                    <div class="slot-reels-row">
+                        <div id="casinoReel0" class="slot-reel-cell">
+                            <span class="slot-reel-emoji">👑</span>
+                            <span class="slot-reel-label">1000억</span>
+                        </div>
+                        <div id="casinoReel1" class="slot-reel-cell">
+                            <span class="slot-reel-emoji">👑</span>
+                            <span class="slot-reel-label">1000억</span>
+                        </div>
+                        <div id="casinoReel2" class="slot-reel-cell">
+                            <span class="slot-reel-emoji">👑</span>
+                            <span class="slot-reel-label">1000억</span>
+                        </div>
+                    </div>
+                    <div id="casinoSlotStatusText" style="font-size:12px;font-weight:800;color:#fde68a;">
+                        레버를 당겨 3개 릴을 맞춰보세요!
+                    </div>
+                </div>
+                <div id="casinoOddsList" class="roulette-odds-list"></div>
+                <button type="button" id="spinCasinoBtn" class="game-btn btn-primary" style="width:100%;" onclick="spinSecretCasinoRoulette()">
+                    <span>🎰</span>
+                    <span>비밀 슬롯머신 돌리기 (₩10,000,000)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 저장소 & 번호 지정 & 파일 백업 관리 카드 -->
+        <section class="empire-card" style="border-color:rgba(16,185,129,0.45);" aria-label="데이터 저장 관리">
+            <div class="empire-top">
+                <div>
+                    <h2 class="empire-title">💾 저장소 관리 (저장 번호 · 파일 내보내기/불러오기)</h2>
+                    <p id="localStorageStatusText" class="empire-sub">보유 자산, 복권 등급, 직원, 상점, 회사 정보가 브라우저 로컬에 자동 저장됩니다.</p>
+                </div>
+                <span id="localStorageBadge" class="empire-tag built">저장 활성</span>
+            </div>
+
+            <div class="secret-gate-box" style="margin-top:12px;">
+                <div>
+                    <div style="font-size:13px;font-weight:900;color:#fde047;">🔢 저장 번호 지정 · 번호로 불러오기</div>
+                    <div id="savePinStatusText" class="empire-sub" style="color:#cbd5e1;margin-top:2px;">저장할 번호(예: 1004, 7777)를 지정해 저장하고, 그 번호를 입력해 언제든 불러올 수 있습니다.</div>
+                </div>
+                <div class="secret-gate-row" style="flex-wrap:wrap;">
+                    <input type="text" id="saveSlotNumberInput" inputmode="numeric" maxlength="12" placeholder="저장 번호 지정 (예: 7777)" class="secret-pw-input">
+                    <button type="button" class="game-btn btn-emerald" style="padding:10px 12px;font-size:12px;" onclick="saveGameBySlotNumber()">번호로 저장</button>
+                    <input type="text" id="loadSlotNumberInput" inputmode="numeric" maxlength="12" placeholder="불러올 번호 입력" class="secret-pw-input">
+                    <button type="button" class="game-btn btn-primary" style="padding:10px 12px;font-size:12px;" onclick="loadGameBySlotNumber()">번호로 입장</button>
+                </div>
+            </div>
+
+            <div class="action-row" style="margin-top:12px;">
+                <button type="button" id="manualSaveBtn" class="game-btn btn-emerald" onclick="forceSaveLocalData()">
+                    <span>💾</span>
+                    <span>저장하기</span>
+                </button>
+                <button type="button" id="manualLoadBtn" class="game-btn btn-primary" onclick="manualLoadSavedData()">
+                    <span>📂</span>
+                    <span>저장 불러오기</span>
+                </button>
+            </div>
+
+            <div class="action-row" style="margin-top:8px;">
+                <button type="button" class="game-btn btn-secondary" onclick="exportSaveFile()">
+                    <span>⬇️</span>
+                    <span>파일로 저장 (.json)</span>
+                </button>
+                <button type="button" class="game-btn btn-secondary" onclick="triggerImportSaveFile()">
+                    <span>⬆️</span>
+                    <span>파일 불러오기</span>
+                </button>
+            </div>
+            <input type="file" id="importSaveFileInput" accept=".json,application/json" style="display:none;" onchange="handleImportSaveFile(event)">
+
+            <div style="margin-top:8px;">
+                <button type="button" class="game-btn btn-work" style="width:100%;" onclick="confirmResetLocalData()">
+                    <span>🔄</span>
+                    <span>저장 데이터 초기화</span>
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- 전체 화면 5초 공사장 노가다 컷씬 -->
+    <div id="cutsceneOverlay" class="cutscene-overlay" role="dialog" aria-modal="true" aria-label="공사장 작업 컷씬">
+        <div class="cutscene-sky"></div>
+
+        <div class="cutscene-top">
+            <div class="cutscene-tag">
+                <span>🚧</span>
+                <span>제1현장 건설 컷씬 · 일당 ₩1,000</span>
+            </div>
+            <div id="cutsceneTimer" class="cutscene-timer">5.0s</div>
+        </div>
+
+        <div class="cutscene-stage">
+            <div class="crane-arm"></div>
+            <div class="crane-trolley">
+                <div class="crane-cable"></div>
+                <div class="crane-hook">🪝</div>
+            </div>
+
+            <div class="worker-rig">
+                <div class="worker-avatar">👷</div>
+                <div class="worker-tool">⛏️</div>
+            </div>
+            <div class="spark-burst">💥✨</div>
+
+            <div class="building-stack" id="buildingStack">
+                <div class="brick-row"></div>
+                <div class="brick-row"></div>
+                <div class="brick-row"></div>
+            </div>
+
+            <div class="ground-strip">
+                <span>🏗️ 타워크레인 가동 중</span>
+                <span>🧱 철골·콘크리트 시공</span>
+            </div>
+        </div>
+
+        <div class="cutscene-bottom">
+            <div id="cutsceneCaption" class="cutscene-caption">현장에 투입되었습니다! 땀 흘려 일하는 중...</div>
+            <div id="cutsceneSub" class="cutscene-sub">5초 작업을 완료하면 ₩1,000이 즉시 지급됩니다.</div>
+            <div class="cutscene-bar-track">
+                <div id="cutsceneBarFill" class="cutscene-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastNotice" class="toast-notice" role="status" aria-live="polite"></div>
+
+    <script>
+        /* =====================================================================
+           전역 상수 & 상태 선언
+           ===================================================================== */
+        const STORAGE_KEY = 'lottery_simulator_state_v1';
+        const SLOT_STORAGE_PREFIX = 'lottery_simulator_slot_v1:';
+        const WORK_DURATION_MS = 5000;
+        const WORK_REWARD = 1000;
+        const COMPANY_FOUND_COST = 1000000000000; // 1조 원
+        const ROULETTE_COST = 5000;
+        const CASINO_ROULETTE_COST = 10000000; // 1,000만 원
+        const CASINO_SECRET_PW = '0721';
+        let sellCompanyArmed = false;
+        let sellCompanyTimer = null;
+        let dumpCompanyArmed = false;
+        let dumpCompanyTimer = null;
+
+        const LOTTERY_TIERS = [
+            { level: 1, name: '일반 복권', price: 1000, mult: 1, upgradeCost: 10000 },
+            { level: 2, name: '실버 복권', price: 10000, mult: 10, upgradeCost: 100000 },
+            { level: 3, name: '골드 복권', price: 100000, mult: 100, upgradeCost: 1000000 },
+            { level: 4, name: '다이아 복권', price: 1000000, mult: 1000, upgradeCost: 10000000 },
+            { level: 5, name: '황제 블랙카드 복권', price: 10000000, mult: 10000, upgradeCost: 0 }
+        ];
+
+        const PRIZE_POOL = [
+            { tier: 'miss', rankName: '꽝', amount: 0, weight: 61, emoji: '🍀' },
+            { tier: '5st', rankName: '5등', amount: 1000, weight: 23, emoji: '🎟️' },
+            { tier: '4st', rankName: '4등', amount: 5000, weight: 11, emoji: '💵' },
+            { tier: '3st', rankName: '3등', amount: 1000000, weight: 4, emoji: '💰' },
+            { tier: '2st', rankName: '2등', amount: 100000000, weight: 0.85, emoji: '💎' },
+            { tier: '1st', rankName: '1등', amount: 1000000000, weight: 0.15, emoji: '👑' }
+        ];
+
+        const TEN_PULL_PRIZE_POOL = [
+            { tier: 'miss', rankName: '꽝', amount: 0, weight: 70, emoji: '🍀' },
+            { tier: '5st', rankName: '5등', amount: 1000, weight: 19, emoji: '🎟️' },
+            { tier: '4st', rankName: '4등', amount: 5000, weight: 8, emoji: '💵' },
+            { tier: '3st', rankName: '3등', amount: 1000000, weight: 2.4, emoji: '💰' },
+            { tier: '2st', rankName: '2등', amount: 100000000, weight: 0.52, emoji: '💎' },
+            { tier: '1st', rankName: '1등', amount: 1000000000, weight: 0.08, emoji: '👑' }
+        ];
+
+        const NON_MATCH_RANK_LABELS = ['5등', '4등', '3등', '2등', '1등', '5등'];
+
+        const ROULETTE_REWARDS = [
+            { label: '꽝 (다음 기회에)', cash: 0, bonusTickets: 0, weight: 48, angle: 36, tier: 'miss' },
+            { label: '소액 행운 ₩3,000', cash: 3000, bonusTickets: 0, weight: 24, angle: 108, tier: '5st' },
+            { label: '복권 1회 무료권', cash: 0, bonusTickets: 1, weight: 17, angle: 180, tier: '4st' },
+            { label: '보너스 ₩15,000', cash: 15000, bonusTickets: 0, weight: 8.5, angle: 252, tier: '3st' },
+            { label: '대박 ₩50,000', cash: 50000, bonusTickets: 0, weight: 2.5, angle: 324, tier: '2st' }
+        ];
+
+        const CASINO_ROULETTE_REWARDS = [
+            { label: '꽝 (참가비 1,000만 원 소멸)', cash: 0, weight: 46.5, probText: '46.5%', reelEmoji: '💀', reelText: '꽝', tier: 'miss' },
+            { label: '실버 칩 ₩20,000,000', cash: 20000000, weight: 38, probText: '38%', reelEmoji: '🥈', reelText: '2천만', tier: '3st' },
+            { label: '골드 칩 ₩100,000,000', cash: 100000000, weight: 15, probText: '15%', reelEmoji: '💎', reelText: '1억', tier: '2st' },
+            { label: '초대박 ₩100,000,000,000 (1,000억)', cash: 100000000000, weight: 0.5, probText: '0.5%', reelEmoji: '👑', reelText: '1000억', tier: '1st' }
+        ];
+
+        const gameState = {
+            balance: 5000,
+            totalWon: 0,
+            ticketNumber: 1,
+            lotteryLevel: 1,
+            freeTicketCount: 0,
+            workCount: 0,
+            casinoUnlocked: false,
+            savePin: '',
+            shopItems: { coin: false, helmet: false, clover: false },
+            staff: { hired: false, level: 1, active: true, scratchedCount: 0, earnedTotal: 0 },
+            company: null,
+            currentTicket: null,
+            revealed: false,
+            scratchRatio: 0,
+            isWorking: false,
+            isSpinning: false,
+            isCasinoSpinning: false,
+            rouletteAngle: 0
+        };
+
+        let prizeCanvas = null;
+        let prizeCtx = null;
+        let scratchCanvas = null;
+        let scratchCtx = null;
+        let isPointerDown = false;
+        let lastPoint = null;
+        let autoScratchTimer = null;
+        let rapidScratchTimer = null;
+        let isRapidScratching = false;
+        let workIntervalId = null;
+        let companyTickTimer = null;
+        let lotteryStaffTimer = null;
+        let lotteryStaffIntervalMs = 6000;
+        const casinoReelTimers = [null, null, null];
+        let toastTimer = null;
+        let audioCtx = null;
+        let noiseBufferCache = null;
+        let lastScratchSoundTs = 0;
+
+        function formatWon(amount) {
+            const n = Math.floor(Number(amount) || 0);
+            return `₩${n.toLocaleString('ko-KR')}`;
+        }
+
+        function formatCompactKoreanWon(amount) {
+            const n = Math.floor(Number(amount) || 0);
+            if (n >= 1000000000000) {
+                const jo = Math.floor(n / 1000000000000);
+                const eok = Math.floor((n % 1000000000000) / 100000000);
+                return eok > 0 ? `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억` : `${jo.toLocaleString('ko-KR')}조`;
+            }
+            if (n >= 100000000) {
+                const eok = Math.floor(n / 100000000);
+                const man = Math.floor((n % 100000000) / 10000);
+                return man > 0 ? `${eok.toLocaleString('ko-KR')}억 ${man.toLocaleString('ko-KR')}만` : `${eok.toLocaleString('ko-KR')}억`;
+            }
+            if (n >= 10000) {
+                const man = Math.floor(n / 10000);
+                const rest = n % 10000;
+                return rest > 0 ? `${man.toLocaleString('ko-KR')}만 ${rest.toLocaleString('ko-KR')}` : `${man.toLocaleString('ko-KR')}만`;
+            }
+            return n.toLocaleString('ko-KR');
+        }
+
+        function showToast(msg) {
+            const el = document.getElementById('toastNotice');
+            if (!el) return;
+            el.textContent = String(msg || '');
+            el.classList.add('show');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+            }, 2600);
+        }
+
+        function ensureAudioContext() {
+            try {
+                if (!audioCtx) {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (Ctx) audioCtx = new Ctx();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+                if (audioCtx && !noiseBufferCache) {
+                    const sampleRate = audioCtx.sampleRate;
+                    const length = Math.floor(sampleRate * 0.25);
+                    const buffer = audioCtx.createBuffer(1, length, sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < length; i++) {
+                        data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+                    }
+                    noiseBufferCache = buffer;
+                }
+            } catch {
+                // 무시
+            }
+        }
+
+        function playTone(freq, duration = 0.12, type = 'sine', delay = 0, gainVal = 0.08, endFreq = null) {
+            try {
+                ensureAudioContext();
+                if (!audioCtx) return;
+                const start = audioCtx.currentTime + delay;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, start);
+                if (endFreq && endFreq > 0) {
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, start + duration);
+                }
+                gain.gain.setValueAtTime(0.0001, start);
+                gain.gain.linearRampToValueAtTime(gainVal, start + Math.min(0.015, duration * 0.2));
+                gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(start);
+                osc.stop(start + duration + 0.025);
+            } catch {
+                // 무시
+            }
+        }
+
+        function playScratchTick() {
+            const now = performance.now();
+            if (now - lastScratchSoundTs < 38) return;
+            lastScratchSoundTs = now;
+            try {
+                ensureAudioContext();
+                if (!audioCtx || !noiseBufferCache) {
+                    playTone(1450 + Math.random() * 550, 0.035, 'triangle', 0, 0.04, 2100);
+                    return;
+                }
+                const t = audioCtx.currentTime;
+                const src = audioCtx.createBufferSource();
+                src.buffer = noiseBufferCache;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2400 + Math.random() * 1400, t);
+                filter.Q.setValueAtTime(3.2, t);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.001, t);
+                gain.gain.linearRampToValueAtTime(0.075, t + 0.006);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                src.start(t, Math.random() * 0.12, 0.048);
+
+                playTone(1750 + Math.random() * 650, 0.028, 'sine', 0, 0.022, 2350 + Math.random() * 500);
+            } catch {
+                // 무시
+            }
+        }
+
+        function playWorkStrikeSound() {
+            playTone(145, 0.11, 'triangle', 0, 0.11, 65);
+            playTone(620, 0.05, 'sine', 0.015, 0.055, 1180);
+        }
+
+        function playWorkCompleteSound() {
+            playTone(523.25, 0.13, 'triangle', 0, 0.1);
+            playTone(659.25, 0.13, 'triangle', 0.09, 0.1);
+            playTone(783.99, 0.14, 'triangle', 0.18, 0.11);
+            playTone(1046.5, 0.28, 'sine', 0.27, 0.12);
+        }
+
+        function playTierResultSound(tier) {
+            if (tier === '1st' || tier === '2st') {
+                const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+                notes.forEach((n, i) => {
+                    playTone(n, 0.18, 'triangle', i * 0.09, 0.12, n * 1.02);
+                    playTone(n * 2, 0.22, 'sine', i * 0.09 + 0.02, 0.055);
+                });
+            } else if (tier === '3st' || tier === '4st' || tier === '5st') {
+                playTone(587.33, 0.12, 'triangle', 0, 0.095, 622.25);
+                playTone(880.0, 0.14, 'triangle', 0.09, 0.1, 932.33);
+                playTone(1174.66, 0.24, 'sine', 0.18, 0.1);
+            } else {
+                playTone(293.66, 0.14, 'sine', 0, 0.055, 246.94);
+                playTone(220.0, 0.2, 'sine', 0.12, 0.05, 185.0);
+            }
+        }
+
+        /* =====================================================================
+           저장 & 복원 (로컬 스토리지 · 저장 번호 · 파일 백업)
+           ===================================================================== */
+        const LOCAL_WINDOW_PREFIX = 'LOTTERY_SIM_LOCAL_V1:';
+        const LOCAL_IDB_NAME = 'LotterySimulatorLocalDB';
+        const LOCAL_IDB_STORE = 'state_store';
+        let localResetArmed = false;
+        let localResetTimer = null;
+
+        function buildSavePayload() {
+            return {
+                balance: gameState.balance,
+                totalWon: gameState.totalWon,
+                ticketNumber: gameState.ticketNumber,
+                lotteryLevel: gameState.lotteryLevel,
+                freeTicketCount: gameState.freeTicketCount,
+                workCount: gameState.workCount,
+                casinoUnlocked: gameState.casinoUnlocked,
+                savePin: gameState.savePin || '',
+                shopItems: gameState.shopItems,
+                staff: gameState.staff,
+                company: gameState.company,
+                savedAt: Date.now()
+            };
+        }
+
+        function writeIndexedDbBackup(jsonStr) {
+            try {
+                if (!window.indexedDB) return;
+                const req = window.indexedDB.open(LOCAL_IDB_NAME, 1);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains(LOCAL_IDB_STORE)) {
+                        db.createObjectStore(LOCAL_IDB_STORE);
+                    }
+                };
+                req.onsuccess = () => {
+                    try {
+                        const db = req.result;
+                        const tx = db.transaction(LOCAL_IDB_STORE, 'readwrite');
+                        tx.objectStore(LOCAL_IDB_STORE).put(jsonStr, STORAGE_KEY);
+                    } catch {
+                        // 무시
+                    }
+                };
+            } catch {
+                // 무시
+            }
+        }
+
+        function restoreFromIndexedDbIfNeeded() {
+            return new Promise((resolve) => {
+                try {
+                    if (!window.indexedDB) {
+                        resolve(false);
+                        return;
+                    }
+                    const req = window.indexedDB.open(LOCAL_IDB_NAME, 1);
+                    req.onupgradeneeded = () => {
+                        const db = req.result;
+                        if (!db.objectStoreNames.contains(LOCAL_IDB_STORE)) {
+                            db.createObjectStore(LOCAL_IDB_STORE);
+                        }
+                    };
+                    req.onsuccess = () => {
+                        try {
+                            const db = req.result;
+                            const tx = db.transaction(LOCAL_IDB_STORE, 'readonly');
+                            const getReq = tx.objectStore(LOCAL_IDB_STORE).get(STORAGE_KEY);
+                            getReq.onsuccess = () => {
+                                if (typeof getReq.result === 'string' && getReq.result) {
+                                    applyParsedSaveData(JSON.parse(getReq.result));
+                                    resolve(true);
+                                } else {
+                                    resolve(false);
+                                }
+                            };
+                            getReq.onerror = () => resolve(false);
+                        } catch {
+                            resolve(false);
+                        }
+                    };
+                    req.onerror = () => resolve(false);
+                } catch {
+                    resolve(false);
+                }
+            });
+        }
+
+        function applyParsedSaveData(parsed) {
+            if (!parsed || typeof parsed !== 'object') return;
+            if (typeof parsed.balance === 'number' && Number.isFinite(parsed.balance)) {
+                gameState.balance = Math.max(0, Math.floor(parsed.balance));
+            }
+            if (typeof parsed.totalWon === 'number' && Number.isFinite(parsed.totalWon)) {
+                gameState.totalWon = Math.max(0, Math.floor(parsed.totalWon));
+            }
+            if (typeof parsed.ticketNumber === 'number' && Number.isFinite(parsed.ticketNumber)) {
+                gameState.ticketNumber = Math.max(1, Math.floor(parsed.ticketNumber));
+            }
+            if (typeof parsed.lotteryLevel === 'number' && Number.isFinite(parsed.lotteryLevel)) {
+                gameState.lotteryLevel = Math.max(1, Math.min(LOTTERY_TIERS.length, Math.floor(parsed.lotteryLevel)));
+            }
+            if (typeof parsed.freeTicketCount === 'number' && Number.isFinite(parsed.freeTicketCount)) {
+                gameState.freeTicketCount = Math.max(0, Math.floor(parsed.freeTicketCount));
+            }
+            if (typeof parsed.workCount === 'number' && Number.isFinite(parsed.workCount)) {
+                gameState.workCount = Math.max(0, Math.floor(parsed.workCount));
+            }
+            if (typeof parsed.casinoUnlocked === 'boolean') {
+                gameState.casinoUnlocked = parsed.casinoUnlocked;
+            }
+            if (typeof parsed.savePin === 'string') {
+                gameState.savePin = parsed.savePin;
+            }
+            if (parsed.staff && typeof parsed.staff === 'object') {
+                gameState.staff = {
+                    hired: Boolean(parsed.staff.hired),
+                    level: Math.max(1, Number(parsed.staff.level) || 1),
+                    active: parsed.staff.active !== false,
+                    scratchedCount: Math.max(0, Number(parsed.staff.scratchedCount) || 0),
+                    earnedTotal: Math.max(0, Number(parsed.staff.earnedTotal) || 0)
+                };
+            }
+            if (parsed.shopItems && typeof parsed.shopItems === 'object') {
+                gameState.shopItems = {
+                    coin: Boolean(parsed.shopItems.coin),
+                    helmet: Boolean(parsed.shopItems.helmet),
+                    clover: Boolean(parsed.shopItems.clover)
+                };
+            }
+            if (parsed.company && typeof parsed.company === 'object' && parsed.company.name) {
+                gameState.company = {
+                    name: String(parsed.company.name),
+                    level: Math.max(1, Number(parsed.company.level) || 1),
+                    incomePerTick: Math.max(100000000, Number(parsed.company.incomePerTick) || 100000000),
+                    pendingRevenue: Math.max(0, Number(parsed.company.pendingRevenue) || 0),
+                    divisions: {
+                        ai: Boolean(parsed.company.divisions && parsed.company.divisions.ai),
+                        space: Boolean(parsed.company.divisions && parsed.company.divisions.space)
+                    }
+                };
+            } else {
+                gameState.company = null;
+            }
+        }
+
+        function saveGameState() {
+            try {
+                const payload = buildSavePayload();
+                const jsonStr = JSON.stringify(payload);
+                try {
+                    window.localStorage.setItem(STORAGE_KEY, jsonStr);
+                } catch {
+                    // 무시
+                }
+                if (gameState.savePin) {
+                    try {
+                        window.localStorage.setItem(`${SLOT_STORAGE_PREFIX}${gameState.savePin}`, jsonStr);
+                    } catch {
+                        // 무시
+                    }
+                }
+                try {
+                    window.name = LOCAL_WINDOW_PREFIX + jsonStr;
+                } catch {
+                    // 무시
+                }
+                writeIndexedDbBackup(jsonStr);
+
+                const statusEl = document.getElementById('localStorageStatusText');
+                if (statusEl) {
+                    const nowStr = new Date().toLocaleTimeString('ko-KR');
+                    const slotLabel = gameState.savePin ? ` · 지정 번호 [${gameState.savePin}]` : '';
+                    statusEl.textContent = `최근 로컬 자동 저장: ${nowStr}${slotLabel} (자산 · 등급 · 직원 · 상점 · 회사 모두 보관 중)`;
+                }
+            } catch {
+                // 무시
+            }
+        }
+
+        function saveGameBySlotNumber() {
+            const input = document.getElementById('saveSlotNumberInput');
+            const rawSlot = (input ? input.value : '').trim();
+            if (!rawSlot) {
+                showToast('먼저 지정할 저장 번호를 입력해 주세요! (예: 1234)');
+                return;
+            }
+            gameState.savePin = rawSlot;
+            saveGameState();
+            updateUI();
+            playTierResultSound('4st');
+            showToast(`🔢 저장 번호 [${rawSlot}]로 현재 진행 상황이 저장되었습니다!`);
+        }
+
+        function loadGameBySlotNumber() {
+            const input = document.getElementById('loadSlotNumberInput');
+            const rawSlot = (input ? input.value : '').trim();
+            if (!rawSlot) {
+                showToast('불러올 저장 번호를 입력해 주세요!');
+                return;
+            }
+
+            let raw = null;
+            try {
+                raw = window.localStorage.getItem(`${SLOT_STORAGE_PREFIX}${rawSlot}`);
+            } catch {
+                raw = null;
+            }
+
+            if (!raw) {
+                try {
+                    const latestRaw = window.localStorage.getItem(STORAGE_KEY);
+                    if (latestRaw) {
+                        const parsedLatest = JSON.parse(latestRaw);
+                        if (parsedLatest && String(parsedLatest.savePin || '').trim() === rawSlot) {
+                            raw = latestRaw;
+                        }
+                    }
+                } catch {
+                    // 무시
+                }
+            }
+
+            if (!raw) {
+                playTierResultSound('miss');
+                showToast(`❌ [${rawSlot}] 번호로 저장된 데이터를 찾을 수 없습니다.`);
+                return;
+            }
+
+            try {
+                applyParsedSaveData(JSON.parse(raw));
+                gameState.savePin = rawSlot;
+                if (input) input.value = '';
+                startLotteryStaffLoop();
+                saveGameState();
+                updateUI();
+                playTierResultSound('2st');
+                showToast(`🔓 저장 번호 [${rawSlot}] 데이터를 불러와 입장했습니다!`);
+            } catch {
+                showToast('⚠️ 저장 데이터를 불러오는 중 오류가 발생했습니다.');
+            }
+        }
+
+        function loadGameState() {
+            try {
+                let raw = null;
+                try {
+                    raw = window.localStorage.getItem(STORAGE_KEY);
+                } catch {
+                    raw = null;
+                }
+                if (!raw && typeof window.name === 'string' && window.name.startsWith(LOCAL_WINDOW_PREFIX)) {
+                    raw = window.name.slice(LOCAL_WINDOW_PREFIX.length);
+                }
+                if (!raw) return false;
+                applyParsedSaveData(JSON.parse(raw));
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        function forceSaveLocalData() {
+            saveGameState();
+            const badge = document.getElementById('localStorageBadge');
+            if (badge) badge.textContent = '저장 완료';
+            playTierResultSound('4st');
+            showToast('💾 저장 완료! 현재 자산·등급·직원·상점·회사 데이터가 저장소에 기록되었습니다.');
+        }
+
+        function manualLoadSavedData() {
+            hydrateFromIndexedDb().then(() => {
+                const loaded = loadGameState();
+                if (!loaded) {
+                    showToast('⚠️ 저장된 데이터가 없습니다. 먼저 [저장하기]를 눌러주세요.');
+                    return;
+                }
+                startLotteryStaffLoop();
+                updateUI();
+                playTierResultSound('3st');
+                showToast('📂 저장된 진행 상황을 성공적으로 불러왔습니다!');
+            });
+        }
+
+        function exportSaveFile() {
+            try {
+                const payload = buildSavePayload();
+                const jsonStr = JSON.stringify(payload, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const slotTag = gameState.savePin ? `_${gameState.savePin}` : '';
+                a.href = url;
+                a.download = `lottery_save${slotTag}_${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                playTierResultSound('4st');
+                showToast('⬇️ 세이브 파일(.json)이 기기에 저장되었습니다!');
+            } catch {
+                showToast('⚠️ 파일 내보내기 중 오류가 발생했습니다.');
+            }
+        }
+
+        function triggerImportSaveFile() {
+            const input = document.getElementById('importSaveFileInput');
+            if (input) {
+                input.value = '';
+                input.click();
+            }
+        }
+
+        function handleImportSaveFile(event) {
+            const file = event && event.target && event.target.files ? event.target.files[0] : null;
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const parsed = JSON.parse(String(reader.result || ''));
+                    if (!parsed || typeof parsed !== 'object' || typeof parsed.balance !== 'number') {
+                        throw new Error('Invalid save format');
+                    }
+                    applyParsedSaveData(parsed);
+                    startLotteryStaffLoop();
+                    saveGameState();
+                    updateUI();
+                    playTierResultSound('2st');
+                    showToast('⬆️ 저장 파일을 불러와 진행 상황을 복원했습니다!');
+                } catch {
+                    playTierResultSound('miss');
+                    showToast('❌ 올바른 복권 시뮬레이터 저장 파일(.json)이 아닙니다.');
+                }
+            };
+            reader.readAsText(file, 'utf-8');
+        }
+
+        function confirmResetLocalData() {
+            if (!localResetArmed) {
+                localResetArmed = true;
+                showToast('⚠️ 모든 진행 상황을 초기화하려면 4초 안에 한 번 더 눌러주세요!');
+                if (localResetTimer) clearTimeout(localResetTimer);
+                localResetTimer = setTimeout(() => {
+                    localResetArmed = false;
+                }, 4000);
+                return;
+            }
+            localResetArmed = false;
+            try {
+                window.localStorage.removeItem(STORAGE_KEY);
+                window.name = '';
+            } catch {
+                // 무시
+            }
+            gameState.balance = 5000;
+            gameState.totalWon = 0;
+            gameState.ticketNumber = 1;
+            gameState.lotteryLevel = 1;
+            gameState.freeTicketCount = 0;
+            gameState.workCount = 0;
+            gameState.casinoUnlocked = false;
+            gameState.savePin = '';
+            gameState.shopItems = { coin: false, helmet: false, clover: false };
+            gameState.staff = { hired: false, level: 1, active: true, scratchedCount: 0, earnedTotal: 0 };
+            gameState.company = null;
+            startLotteryStaffLoop();
+            createNewTicket();
+            saveGameState();
+            updateUI();
+            showToast('🔄 모든 데이터가 초기 상태로 재설정되었습니다.');
+        }
+
+        function hydrateFromIndexedDb() {
+            return restoreFromIndexedDbIfNeeded().catch(() => false);
+        }
+
+        function getCurrentTier() {
+            const idx = Math.max(0, Math.min(LOTTERY_TIERS.length - 1, (Number(gameState.lotteryLevel) || 1) - 1));
+            return LOTTERY_TIERS[idx];
+        }
+
+        function getLuckyMultiplier() {
+            return gameState.shopItems && gameState.shopItems.clover ? 1.1 : 1;
+        }
+
+        function getWorkRewardAmount() {
+            const bonus = gameState.shopItems && gameState.shopItems.helmet ? 2000 : 0;
+            return WORK_REWARD + bonus;
+        }
+
+        function pickWeightedPrize(pool = PRIZE_POOL) {
+            const totalWeight = pool.reduce((sum, item) => sum + Number(item.weight || 0), 0);
+            let r = Math.random() * totalWeight;
+            for (let i = 0; i < pool.length; i++) {
+                r -= Number(pool[i].weight || 0);
+                if (r <= 0) {
+                    return pool[i];
+                }
+            }
+            return pool[0];
+        }
+
+        function createNewTicket() {
+            const tier = getCurrentTier();
+            const chosen = pickWeightedPrize(PRIZE_POOL);
+            const luckyNumber = Math.floor(Math.random() * 45) + 1;
+            const winningCellIndex = chosen.tier !== 'miss' ? Math.floor(Math.random() * 6) : -1;
+            const cells = [];
+
+            for (let i = 0; i < 6; i++) {
+                const isWinnerCell = chosen.tier !== 'miss' && i === winningCellIndex;
+                const num = isWinnerCell ? luckyNumber : ((luckyNumber + i * 7 + Math.floor(Math.random() * 6)) % 45) + 1;
+                const rankLabel = isWinnerCell
+                    ? chosen.rankName
+                    : NON_MATCH_RANK_LABELS[(i + gameState.ticketNumber) % NON_MATCH_RANK_LABELS.length];
+                const rawPayout = isWinnerCell ? Math.floor(chosen.amount * tier.mult * getLuckyMultiplier()) : 0;
+                cells.push({
+                    number: num,
+                    rankLabel,
+                    payout: rawPayout,
+                    isWinner: isWinnerCell
+                });
+            }
+
+            gameState.currentTicket = {
+                serial: `#${String(gameState.ticketNumber).padStart(4, '0')}`,
+                tierName: tier.name,
+                mult: tier.mult,
+                luckyNumber,
+                outcome: chosen,
+                totalPayout: cells.reduce((acc, c) => acc + c.payout, 0),
+                cells
+            };
+            gameState.ticketNumber += 1;
+            gameState.revealed = false;
+            gameState.scratchRatio = 0;
+
+            resizeCanvases();
+            drawPrizeBoard();
+            resetScratchFoil();
+            setResultBanner('neutral', '마우스나 손가락으로 금빛 복권을 슥슥 문질러 보세요!', '70% 이상 긁으면 100% 자동 완료되며 등수 결과가 정산됩니다.');
+            updateUI();
+        }
+
+        function resizeCanvases() {
+            const stage = document.getElementById('canvasStage');
+            prizeCanvas = document.getElementById('prizeCanvas');
+            scratchCanvas = document.getElementById('scratchCanvas');
+            if (!stage || !prizeCanvas || !scratchCanvas) return;
+
+            const rect = stage.getBoundingClientRect();
+            const w = Math.max(280, Math.floor(rect.width || 600));
+            const h = Math.max(220, Math.floor(rect.height || 380));
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+            prizeCanvas.width = w * dpr;
+            prizeCanvas.height = h * dpr;
+            scratchCanvas.width = w * dpr;
+            scratchCanvas.height = h * dpr;
+
+            prizeCtx = prizeCanvas.getContext('2d');
+            scratchCtx = scratchCanvas.getContext('2d');
+            if (prizeCtx) prizeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            if (scratchCtx) scratchCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function drawPrizeBoard() {
+            const stage = document.getElementById('canvasStage');
+            if (!prizeCtx || !stage || !gameState.currentTicket) return;
+
+            const rect = stage.getBoundingClientRect();
+            const w = Math.max(280, Math.floor(rect.width || 600));
+            const h = Math.max(220, Math.floor(rect.height || 380));
+            const ticket = gameState.currentTicket;
+
+            prizeCtx.clearRect(0, 0, w, h);
+            const bgGrad = prizeCtx.createLinearGradient(0, 0, w, h);
+            bgGrad.addColorStop(0, '#fffbeb');
+            bgGrad.addColorStop(1, '#fef3c7');
+            prizeCtx.fillStyle = bgGrad;
+            prizeCtx.fillRect(0, 0, w, h);
+
+            prizeCtx.fillStyle = '#78350f';
+            prizeCtx.font = '900 15px "Noto Sans KR", sans-serif';
+            prizeCtx.fillText(`행운 번호: ${ticket.luckyNumber}  (${ticket.tierName} · ${ticket.mult}배)`, 18, 30);
+
+            const cols = 3;
+            const rows = 2;
+            const padX = 16;
+            const topY = 46;
+            const gap = 10;
+            const cellW = (w - padX * 2 - gap * (cols - 1)) / cols;
+            const cellH = (h - topY - 16 - gap * (rows - 1)) / rows;
+
+            ticket.cells.forEach((cell, idx) => {
+                const r = Math.floor(idx / cols);
+                const c = idx % cols;
+                const x = padX + c * (cellW + gap);
+                const y = topY + r * (cellH + gap);
+
+                prizeCtx.fillStyle = cell.isWinner ? '#ecfdf5' : '#ffffff';
+                prizeCtx.strokeStyle = cell.isWinner ? '#10b981' : '#f59e0b';
+                prizeCtx.lineWidth = cell.isWinner ? 2.5 : 1.5;
+                prizeCtx.beginPath();
+                prizeCtx.roundRect(x, y, cellW, cellH, 14);
+                prizeCtx.fill();
+                prizeCtx.stroke();
+
+                prizeCtx.fillStyle = '#0f172a';
+                prizeCtx.font = '900 22px "Fredoka", "Noto Sans KR", sans-serif';
+                prizeCtx.textAlign = 'center';
+                prizeCtx.fillText(String(cell.number), x + cellW / 2, y + cellH * 0.42);
+
+                prizeCtx.fillStyle = cell.isWinner ? '#047857' : '#64748b';
+                prizeCtx.font = '800 12px "Noto Sans KR", sans-serif';
+                prizeCtx.fillText(cell.rankLabel, x + cellW / 2, y + cellH * 0.68);
+
+                prizeCtx.fillStyle = cell.payout > 0 ? '#b45309' : '#94a3b8';
+                prizeCtx.font = '700 11px "Noto Sans KR", sans-serif';
+                prizeCtx.fillText(cell.payout > 0 ? formatWon(cell.payout) : '0원', x + cellW / 2, y + cellH * 0.87);
+                prizeCtx.textAlign = 'left';
+            });
+        }
+
+        function resetScratchFoil() {
+            const stage = document.getElementById('canvasStage');
+            if (!scratchCtx || !stage) return;
+            const rect = stage.getBoundingClientRect();
+            const w = Math.max(280, Math.floor(rect.width || 600));
+            const h = Math.max(220, Math.floor(rect.height || 380));
+
+            scratchCtx.globalCompositeOperation = 'source-over';
+            const foilGrad = scratchCtx.createLinearGradient(0, 0, w, h);
+            foilGrad.addColorStop(0, '#fbbf24');
+            foilGrad.addColorStop(0.5, '#f59e0b');
+            foilGrad.addColorStop(1, '#d97706');
+            scratchCtx.fillStyle = foilGrad;
+            scratchCtx.fillRect(0, 0, w, h);
+
+            scratchCtx.fillStyle = 'rgba(120, 53, 15, 0.25)';
+            scratchCtx.font = '900 18px "Noto Sans KR", sans-serif';
+            scratchCtx.textAlign = 'center';
+            scratchCtx.fillText('✨ 여기를 문질러서 복권을 긁으세요 ✨', w / 2, h / 2);
+            scratchCtx.textAlign = 'left';
+        }
+
+        function getCanvasPoint(e) {
+            if (!scratchCanvas) return { x: 0, y: 0 };
+            const rect = scratchCanvas.getBoundingClientRect();
+            const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function scratchAtPoint(pt) {
+            if (!scratchCtx || !gameState.currentTicket || gameState.revealed) return;
+            const stage = document.getElementById('canvasStage');
+            const rect = stage ? stage.getBoundingClientRect() : { width: 500, height: 320 };
+            const baseRadius = gameState.shopItems && gameState.shopItems.coin ? 54 : 38;
+            scratchCtx.globalCompositeOperation = 'destination-out';
+            scratchCtx.lineCap = 'round';
+            scratchCtx.lineJoin = 'round';
+            scratchCtx.lineWidth = baseRadius * 2;
+
+            if (lastPoint) {
+                scratchCtx.beginPath();
+                scratchCtx.moveTo(lastPoint.x, lastPoint.y);
+                scratchCtx.lineTo(pt.x, pt.y);
+                scratchCtx.stroke();
+            }
+
+            scratchCtx.beginPath();
+            scratchCtx.arc(pt.x, pt.y, baseRadius, 0, Math.PI * 2);
+            scratchCtx.fill();
+
+            const offsetX = Math.min(rect.width * 0.08, 28);
+            const offsetY = Math.min(rect.height * 0.08, 22);
+            scratchCtx.beginPath();
+            scratchCtx.arc(Math.min(rect.width - 10, pt.x + offsetX), pt.y, baseRadius * 0.7, 0, Math.PI * 2);
+            scratchCtx.arc(Math.max(10, pt.x - offsetX), pt.y, baseRadius * 0.7, 0, Math.PI * 2);
+            scratchCtx.arc(pt.x, Math.min(rect.height - 10, pt.y + offsetY), baseRadius * 0.7, 0, Math.PI * 2);
+            scratchCtx.arc(pt.x, Math.max(10, pt.y - offsetY), baseRadius * 0.7, 0, Math.PI * 2);
+            scratchCtx.fill();
+
+            playScratchTick();
+            evaluateScratchProgress();
+        }
+
+        function setScratchScrollLock(locked) {
+            try {
+                if (locked) {
+                    document.documentElement.style.overflowY = 'hidden';
+                    document.documentElement.style.touchAction = 'none';
+                    document.body.style.overflowY = 'hidden';
+                    document.body.style.touchAction = 'none';
+                    if (scratchCanvas) {
+                        scratchCanvas.style.touchAction = 'none';
+                    }
+                } else {
+                    document.documentElement.style.overflowY = 'auto';
+                    document.documentElement.style.touchAction = 'pan-y';
+                    document.body.style.overflowY = 'auto';
+                    document.body.style.touchAction = 'pan-y';
+                    if (scratchCanvas) {
+                        scratchCanvas.style.touchAction = 'pan-y';
+                    }
+                }
+            } catch {
+                // 무시
+            }
+        }
+
+        function evaluateScratchProgress() {
+            if (!scratchCtx || !scratchCanvas || gameState.revealed) return;
+            try {
+                const img = scratchCtx.getImageData(0, 0, scratchCanvas.width, scratchCanvas.height).data;
+                let cleared = 0;
+                let total = 0;
+                for (let i = 3; i < img.length; i += 16) {
+                    total += 1;
+                    if (img[i] < 128) cleared += 1;
+                }
+                const ratio = total > 0 ? cleared / total : 0;
+                const pct = Math.min(100, Math.round(ratio * 100));
+                gameState.scratchRatio = pct;
+                const pctEl = document.getElementById('scratchPercentDisplay');
+                if (pctEl) pctEl.textContent = `${pct}%`;
+
+                // 70% 이상 긁으면 즉시 100% 긁어짐 처리 및 결과 정산
+                if (ratio >= 0.70) {
+                    setScratchScrollLock(false);
+                    isPointerDown = false;
+                    lastPoint = null;
+                    finalizeCurrentTicketResult();
+                }
+            } catch {
+                // 무시
+            }
+        }
+
+        function finalizeCurrentTicketResult() {
+            if (!gameState.currentTicket || gameState.revealed) return;
+            gameState.revealed = true;
+            gameState.scratchRatio = 100;
+
+            if (scratchCtx && scratchCanvas) {
+                scratchCtx.save();
+                scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
+                scratchCtx.globalCompositeOperation = 'destination-out';
+                scratchCtx.clearRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+                scratchCtx.fillStyle = '#000000';
+                scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+                scratchCtx.restore();
+            }
+
+            const ticket = gameState.currentTicket;
+            const payout = Number(ticket.totalPayout || 0);
+            if (payout > 0) {
+                gameState.balance += payout;
+                gameState.totalWon += payout;
+                setResultBanner('win', `🎉 ${ticket.outcome.rankName} 당첨! +${formatWon(payout)}`, `70% 이상 긁어 100% 자동 완료 · 행운 번호 ${ticket.luckyNumber} 일치!`);
+            } else {
+                setResultBanner('miss', '🍀 아쉽게도 이번 복권은 꽝입니다!', `70% 이상 긁어 100% 자동 완료 · 행운 번호 ${ticket.luckyNumber}`);
+            }
+
+            const pctEl = document.getElementById('scratchPercentDisplay');
+            if (pctEl) pctEl.textContent = '100%';
+
+            playTierResultSound(ticket.outcome.tier);
+            saveGameState();
+            updateUI();
+        }
+
+        function setResultBanner(mode, mainText, subText) {
+            const banner = document.getElementById('resultBanner');
+            const mainEl = document.getElementById('resultMainText');
+            const subEl = document.getElementById('resultSubText');
+            if (banner) {
+                banner.classList.remove('win', 'miss');
+                if (mode === 'win') banner.classList.add('win');
+                if (mode === 'miss') banner.classList.add('miss');
+            }
+            if (mainEl) mainEl.textContent = mainText;
+            if (subEl) subEl.textContent = subText;
+        }
+
+        function autoScratchTicket() {
+            if (!gameState.currentTicket || gameState.revealed || autoScratchTimer) return;
+            const stage = document.getElementById('canvasStage');
+            const rect = stage ? stage.getBoundingClientRect() : { width: 500, height: 320 };
+            let step = 0;
+            autoScratchTimer = setInterval(() => {
+                step += 1;
+                const x = ((step * 67) % Math.max(80, rect.width - 40)) + 20;
+                const y = ((step * 53) % Math.max(80, rect.height - 40)) + 20;
+                scratchAtPoint({ x, y });
+                if (gameState.revealed || step >= 28) {
+                    clearInterval(autoScratchTimer);
+                    autoScratchTimer = null;
+                    if (!gameState.revealed) finalizeCurrentTicketResult();
+                }
+            }, 45);
+        }
+
+        function buyNewTicket() {
+            if (isRapidScratching || gameState.isWorking) return;
+            if (gameState.currentTicket && !gameState.revealed) {
+                showToast('현재 복권을 다 긁어야(100% 공개) 새 복권을 구매할 수 있습니다!');
+                return;
+            }
+            const tier = getCurrentTier();
+            if (gameState.freeTicketCount > 0) {
+                gameState.freeTicketCount -= 1;
+                saveGameState();
+                createNewTicket();
+                showToast(`🎟️ 무료 리필권 사용! ${tier.name} 1장을 무료로 받았습니다!`);
+                return;
+            }
+            if (gameState.balance < tier.price) {
+                showToast('잔액이 부족합니다! 공사장 막노동으로 일당을 벌어보세요.');
+                return;
+            }
+            gameState.balance -= tier.price;
+            saveGameState();
+            createNewTicket();
+            showToast(`🎟️ ${tier.name} 구매 완료!`);
+        }
+
+        function upgradeLotteryTier() {
+            if (gameState.currentTicket && !gameState.revealed) {
+                showToast('현재 복권을 다 긁어야(100% 공개) 복권 등급을 바꿀 수 있습니다!');
+                return;
+            }
+            const tier = getCurrentTier();
+            if (!tier.upgradeCost || gameState.lotteryLevel >= LOTTERY_TIERS.length) {
+                showToast('이미 최고 등급 복권입니다!');
+                return;
+            }
+            if (gameState.balance < tier.upgradeCost) {
+                showToast(`복권 강화 비용(${formatWon(tier.upgradeCost)})이 부족합니다.`);
+                return;
+            }
+            gameState.balance -= tier.upgradeCost;
+            gameState.lotteryLevel += 1;
+            const nextTier = getCurrentTier();
+            saveGameState();
+            createNewTicket();
+            updateUI();
+            playTierResultSound('2st');
+            showToast(`🔥 ${nextTier.name}(상금 ${nextTier.mult}배)으로 강화되었습니다!`);
+        }
+
+        function runBulkScratchTickets(count = 10) {
+            if (isRapidScratching || gameState.isWorking) return;
+            const tier = getCurrentTier();
+            const totalCost = tier.price * count;
+            if (gameState.balance < totalCost) {
+                showToast(`10장 연속 긁기 비용(${formatWon(totalCost)})이 부족합니다.`);
+                return;
+            }
+
+            gameState.balance -= totalCost;
+            isRapidScratching = true;
+            let idx = 0;
+            let totalBulkPayout = 0;
+
+            const streamCard = document.getElementById('rapidScratchStreamCard');
+            const stripEl = document.getElementById('rapidScratchStrip');
+            const badgeEl = document.getElementById('rapidScratchCounterBadge');
+            const statusEl = document.getElementById('rapidScratchStatusText');
+            const liveTitleEl = document.getElementById('rapidLiveTicketTitle');
+            const liveNumEl = document.getElementById('rapidLiveNumbersText');
+            const livePillEl = document.getElementById('rapidLiveOutcomePill');
+
+            if (streamCard) streamCard.style.display = '';
+            if (stripEl) stripEl.innerHTML = '';
+            if (statusEl) statusEl.textContent = '10연차 전용 확률로 한 장씩 따다닥 긁는 중입니다...';
+
+            updateUI();
+            saveGameState();
+
+            rapidScratchTimer = setInterval(() => {
+                idx += 1;
+                const chosen = pickWeightedPrize(TEN_PULL_PRIZE_POOL);
+                const lucky = Math.floor(Math.random() * 45) + 1;
+                const payout = chosen.tier === 'miss' ? 0 : Math.floor(chosen.amount * tier.mult * getLuckyMultiplier());
+                totalBulkPayout += payout;
+                if (payout > 0) {
+                    gameState.balance += payout;
+                    gameState.totalWon += payout;
+                }
+
+                const serial = `#${String(gameState.ticketNumber).padStart(4, '0')}`;
+                gameState.ticketNumber += 1;
+
+                playScratchTick();
+                if (badgeEl) badgeEl.textContent = `${idx} / ${count}`;
+                if (liveTitleEl) liveTitleEl.textContent = `복권 ${serial} 긁는 중...`;
+                if (liveNumEl) liveNumEl.textContent = `행운 번호 ${lucky} · ${chosen.rankName}`;
+                if (livePillEl) {
+                    livePillEl.textContent = payout > 0 ? `+${formatWon(payout)}` : '꽝';
+                }
+
+                if (stripEl) {
+                    const row = document.createElement('div');
+                    row.style.cssText = `padding:9px 11px;border-radius:12px;font-size:12px;font-weight:800;display:flex;justify-content:space-between;align-items:center;border:1px solid ${payout > 0 ? '#10b981' : '#cbd5e1'};background:${payout > 0 ? '#ecfdf5' : '#f8fafc'};color:${payout > 0 ? '#065f46' : '#475569'};`;
+                    row.innerHTML = `<span>${chosen.emoji} ${serial} (${chosen.rankName})</span><span>${payout > 0 ? '+' + formatWon(payout) : '0원'}</span>`;
+                    stripEl.appendChild(row);
+                }
+
+                if (idx >= count) {
+                    clearInterval(rapidScratchTimer);
+                    rapidScratchTimer = null;
+                    isRapidScratching = false;
+                    if (statusEl) statusEl.textContent = `10장 정산 완료! 총 당첨금: ${formatWon(totalBulkPayout)}`;
+                    setResultBanner(
+                        totalBulkPayout > 0 ? 'win' : 'miss',
+                        totalBulkPayout > 0 ? `⚡ 10장 연속 긁기 정산: +${formatWon(totalBulkPayout)}` : '⚡ 10장 연속 긁기 완료 (이번엔 꽝이 많았어요)',
+                        `총 구매가 ${formatWon(totalCost)} · 현재 잔액 ${formatWon(gameState.balance)}`
+                    );
+                    playTierResultSound(totalBulkPayout >= 100000000 ? '2st' : (totalBulkPayout > 0 ? '4st' : 'miss'));
+                    saveGameState();
+                    updateUI();
+                }
+            }, 145);
+        }
+
+        function startConstructionCutscene() {
+            if (gameState.isWorking || isRapidScratching) return;
+            const overlay = document.getElementById('cutsceneOverlay');
+            const timerEl = document.getElementById('cutsceneTimer');
+            const fillEl = document.getElementById('cutsceneBarFill');
+            const captionEl = document.getElementById('cutsceneCaption');
+            const subEl = document.getElementById('cutsceneSub');
+
+            gameState.isWorking = true;
+            updateUI();
+
+            const startTs = Date.now();
+            const reward = getWorkRewardAmount();
+            if (overlay) overlay.classList.add('active');
+            if (subEl) subEl.textContent = `5초 작업을 완료하면 ${formatWon(reward)}이 즉시 지급됩니다.`;
+
+            workIntervalId = setInterval(() => {
+                const elapsed = Date.now() - startTs;
+                const remainSec = Math.max(0, (WORK_DURATION_MS - elapsed) / 1000).toFixed(1);
+                const pct = Math.min(100, (elapsed / WORK_DURATION_MS) * 100);
+
+                if (timerEl) timerEl.textContent = `${remainSec}s`;
+                if (fillEl) fillEl.style.width = `${pct}%`;
+                if (captionEl) {
+                    captionEl.textContent = pct < 50
+                        ? '⛏️ 기초 터파기 및 철근 조립 중...'
+                        : '🏗️ 타워크레인으로 상부 자재 올리는 중...';
+                }
+                playWorkStrikeSound();
+
+                if (elapsed >= WORK_DURATION_MS) {
+                    clearInterval(workIntervalId);
+                    workIntervalId = null;
+                    gameState.isWorking = false;
+                    gameState.workCount += 1;
+                    gameState.balance += reward;
+                    if (overlay) overlay.classList.remove('active');
+                    playWorkCompleteSound();
+                    saveGameState();
+                    updateUI();
+                    showToast(`👷 막노동 완료! 일당 ${formatWon(reward)}을 받았습니다.`);
+                }
+            }, 250);
+        }
+
+        function getCompanyUpgradeCost() {
+            const lvl = gameState.company ? Math.max(1, Number(gameState.company.level) || 1) : 1;
+            return 100000000000 * Math.pow(2, lvl - 1);
+        }
+
+        function getCompanyValuation() {
+            if (!gameState.company) return 0;
+            const lvl = Math.max(1, Number(gameState.company.level) || 1);
+            const divBonus = (gameState.company.divisions && gameState.company.divisions.ai ? 150000000000 : 0)
+                + (gameState.company.divisions && gameState.company.divisions.space ? 400000000000 : 0);
+            const pending = Number(gameState.company.pendingRevenue) || 0;
+            return Math.floor(800000000000 + (lvl - 1) * 500000000000 + divBonus + pending);
+        }
+
+        function foundThousandBillionCompany() {
+            if (gameState.company) {
+                showToast('이미 회사를 설립하셨습니다!');
+                return;
+            }
+            if (gameState.balance < COMPANY_FOUND_COST) {
+                showToast(`회사 설립 비용 ${formatWon(COMPANY_FOUND_COST)}이 부족합니다.`);
+                return;
+            }
+            const input = document.getElementById('companyNameInput');
+            const rawName = (input ? input.value : '').trim();
+            const companyName = rawName || '골든 1조 컴퍼니';
+
+            gameState.balance -= COMPANY_FOUND_COST;
+            gameState.company = {
+                name: companyName,
+                level: 1,
+                incomePerTick: 100000000,
+                pendingRevenue: 0,
+                divisions: { ai: false, space: false }
+            };
+            if (input) input.value = '';
+            saveGameState();
+            updateUI();
+            playTierResultSound('1st');
+            showToast(`🏙️ "${companyName}" 회사가 설립되었습니다!`);
+        }
+
+        function collectCompanyRevenue() {
+            if (!gameState.company) return;
+            const amount = Number(gameState.company.pendingRevenue) || 0;
+            if (amount <= 0) {
+                showToast('아직 수령할 회사 수익이 없습니다.');
+                return;
+            }
+            gameState.company.pendingRevenue = 0;
+            gameState.balance += amount;
+            saveGameState();
+            updateUI();
+            playTierResultSound('3st');
+            showToast(`💰 회사 수익 ${formatWon(amount)}을 정산했습니다!`);
+        }
+
+        function upgradeCompany() {
+            if (!gameState.company) return;
+            const cost = getCompanyUpgradeCost();
+            if (gameState.balance < cost) {
+                showToast(`사옥 강화 비용(${formatWon(cost)})이 부족합니다.`);
+                return;
+            }
+            gameState.balance -= cost;
+            gameState.company.level += 1;
+            gameState.company.incomePerTick += 250000000;
+            saveGameState();
+            updateUI();
+            playTierResultSound('2st');
+            showToast(`⬆️ 사옥이 Lv.${gameState.company.level}로 강화되었습니다!`);
+        }
+
+        function buyCompanyDivision(type) {
+            if (!gameState.company) return;
+            if (!gameState.company.divisions) {
+                gameState.company.divisions = { ai: false, space: false };
+            }
+            if (type === 'ai') {
+                if (gameState.company.divisions.ai) return;
+                const cost = 30000000000;
+                if (gameState.balance < cost) {
+                    showToast(`AI·로봇 연구소 도입 비용(${formatWon(cost)})이 부족합니다.`);
+                    return;
+                }
+                gameState.balance -= cost;
+                gameState.company.divisions.ai = true;
+                gameState.company.incomePerTick += 200000000;
+            } else if (type === 'space') {
+                if (gameState.company.divisions.space) return;
+                const cost = 80000000000;
+                if (gameState.balance < cost) {
+                    showToast(`우주·항공 모빌리티 도입 비용(${formatWon(cost)})이 부족합니다.`);
+                    return;
+                }
+                gameState.balance -= cost;
+                gameState.company.divisions.space = true;
+                gameState.company.incomePerTick += 600000000;
+            }
+            saveGameState();
+            updateUI();
+            playTierResultSound('2st');
+            showToast('🏢 신규 사업부가 도입되었습니다!');
+        }
+
+        function sellCompany() {
+            if (!gameState.company) return;
+            if (!sellCompanyArmed) {
+                sellCompanyArmed = true;
+                const valuation = getCompanyValuation();
+                showToast(`⚠️ "${gameState.company.name}"을(를) ${formatWon(valuation)}에 매각하려면 4초 안에 한 번 더 눌러주세요!`);
+                if (sellCompanyTimer) clearTimeout(sellCompanyTimer);
+                sellCompanyTimer = setTimeout(() => {
+                    sellCompanyArmed = false;
+                }, 4000);
+                return;
+            }
+            sellCompanyArmed = false;
+            const salePrice = getCompanyValuation();
+            const soldName = gameState.company.name;
+            gameState.company = null;
+            gameState.balance += salePrice;
+            saveGameState();
+            updateUI();
+            playTierResultSound('1st');
+            showToast(`🤝 "${soldName}" 매각 완료! ${formatWon(salePrice)}을 수령했습니다.`);
+        }
+
+        function sellCompanyImmediate() {
+            if (!gameState.company) return;
+            const immediatePrice = Math.floor(getCompanyValuation() * 0.92);
+            if (!dumpCompanyArmed) {
+                dumpCompanyArmed = true;
+                showToast(`⚡ "${gameState.company.name}"을(를) 즉시 매도(${formatWon(immediatePrice)})하려면 4초 안에 한 번 더 눌러주세요!`);
+                if (dumpCompanyTimer) clearTimeout(dumpCompanyTimer);
+                dumpCompanyTimer = setTimeout(() => {
+                    dumpCompanyArmed = false;
+                }, 4000);
+                return;
+            }
+            dumpCompanyArmed = false;
+            const soldName = gameState.company.name;
+            gameState.company = null;
+            gameState.balance += immediatePrice;
+            saveGameState();
+            updateUI();
+            playTierResultSound('3st');
+            showToast(`⚡ "${soldName}" 바로 매도 완료! ${formatWon(immediatePrice)}을 수령했습니다.`);
+        }
+
+        function startCompanyTickLoop() {
+            if (companyTickTimer) clearInterval(companyTickTimer);
+            companyTickTimer = setInterval(() => {
+                if (gameState.company) {
+                    gameState.company.pendingRevenue = (Number(gameState.company.pendingRevenue) || 0) + (Number(gameState.company.incomePerTick) || 100000000);
+                    updateUI();
+                }
+            }, 5000);
+        }
+
+        function getLotteryStaffIntervalMs() {
+            const lvl = Math.max(1, Number(gameState.staff && gameState.staff.level) || 1);
+            return Math.max(1200, 6000 - (lvl - 1) * 800);
+        }
+
+        function getLotteryStaffBatchCount() {
+            if (!gameState.staff || !gameState.staff.hired) return 1;
+            return Math.max(1, Number(gameState.staff.level) || 1);
+        }
+
+        function getLotteryStaffUpgradeCost() {
+            if (!gameState.staff || !gameState.staff.hired) return 50000;
+            return 50000 * Math.pow(2, gameState.staff.level);
+        }
+
+        function hireOrUpgradeLotteryStaff() {
+            const cost = getLotteryStaffUpgradeCost();
+            if (gameState.balance < cost) {
+                showToast(`직원 고용/업그레이드 비용(${formatWon(cost)})이 부족합니다.`);
+                return;
+            }
+            gameState.balance -= cost;
+            if (!gameState.staff.hired) {
+                gameState.staff.hired = true;
+                gameState.staff.level = 1;
+                gameState.staff.active = true;
+            } else {
+                gameState.staff.level += 1;
+                gameState.staff.active = true;
+            }
+            startLotteryStaffLoop();
+            saveGameState();
+            updateUI();
+            playTierResultSound('3st');
+            showToast(`🧑‍💼 복권 전담 직원 Lv.${gameState.staff.level} (1회 ${getLotteryStaffBatchCount()}장 · 주기 ${(getLotteryStaffIntervalMs() / 1000).toFixed(1)}초)!`);
+        }
+
+        function toggleLotteryStaffActive() {
+            if (!gameState.staff || !gameState.staff.hired) {
+                showToast('먼저 복권 긁는 직원을 고용해 주세요!');
+                return;
+            }
+            gameState.staff.active = !gameState.staff.active;
+            startLotteryStaffLoop();
+            saveGameState();
+            updateUI();
+            showToast(gameState.staff.active ? '▶ 직원 자동 스크래치 근무를 재개했습니다.' : '⏸ 직원 자동 스크래치 근무를 일시정지했습니다.');
+        }
+
+        function startLotteryStaffLoop() {
+            if (lotteryStaffTimer) {
+                clearInterval(lotteryStaffTimer);
+                lotteryStaffTimer = null;
+            }
+            if (!gameState.staff || !gameState.staff.hired || !gameState.staff.active) return;
+
+            lotteryStaffIntervalMs = getLotteryStaffIntervalMs();
+            lotteryStaffTimer = setInterval(() => {
+                if (!gameState.staff || !gameState.staff.hired || !gameState.staff.active) return;
+                const tier = getCurrentTier();
+                const batchCount = getLotteryStaffBatchCount();
+                let processed = 0;
+
+                for (let i = 0; i < batchCount; i++) {
+                    if (gameState.balance < tier.price) break;
+                    gameState.balance -= tier.price;
+                    const chosen = pickWeightedPrize(PRIZE_POOL);
+                    const payout = chosen.tier === 'miss' ? 0 : Math.floor(chosen.amount * tier.mult * getLuckyMultiplier());
+                    if (payout > 0) {
+                        gameState.balance += payout;
+                        gameState.totalWon += payout;
+                        gameState.staff.earnedTotal = (Number(gameState.staff.earnedTotal) || 0) + payout;
+                    }
+                    gameState.staff.scratchedCount = (Number(gameState.staff.scratchedCount) || 0) + 1;
+                    processed += 1;
+                }
+
+                if (processed > 0) {
+                    saveGameState();
+                    updateUI();
+                }
+            }, lotteryStaffIntervalMs);
+        }
+
+        function spinLuckyRoulette() {
+            if (gameState.isSpinning || gameState.isWorking) return;
+            if (gameState.balance < ROULETTE_COST) {
+                showToast(`럭키 룰렛 참가비(${formatWon(ROULETTE_COST)})가 부족합니다.`);
+                return;
+            }
+            gameState.balance -= ROULETTE_COST;
+            gameState.isSpinning = true;
+            updateUI();
+
+            const chosen = pickWeightedPrize(ROULETTE_REWARDS);
+            gameState.rouletteAngle += 720 + (chosen.angle || 36);
+            const dial = document.getElementById('rouletteDial');
+            if (dial) dial.style.transform = `rotate(${gameState.rouletteAngle}deg)`;
+
+            setTimeout(() => {
+                if (chosen.cash > 0) {
+                    gameState.balance += chosen.cash;
+                    gameState.totalWon += chosen.cash;
+                }
+                if (chosen.bonusTickets > 0) {
+                    gameState.freeTicketCount = (Number(gameState.freeTicketCount) || 0) + chosen.bonusTickets;
+                }
+                const tag = document.getElementById('rouletteResultTag');
+                if (tag) tag.textContent = chosen.label;
+                gameState.isSpinning = false;
+                playTierResultSound(chosen.tier);
+                saveGameState();
+                updateUI();
+                showToast(
+                    chosen.bonusTickets > 0
+                        ? `🎟️ 복권 1회 무료권 획득! 다음 새 복권 구매 1회가 무료입니다. (보유 ${gameState.freeTicketCount}회)`
+                        : `🎡 룰렛 결과: ${chosen.label}`
+                );
+            }, 1850);
+        }
+
+        function buyShopItem(key) {
+            const prices = { coin: 10000, helmet: 15000, clover: 100000 };
+            const names = { coin: '순금 스크래치 코인', helmet: '특급 안전모', clover: '황금 네잎클로버' };
+            if (!gameState.shopItems) gameState.shopItems = { coin: false, helmet: false, clover: false };
+            if (gameState.shopItems[key]) {
+                showToast('이미 보유 중인 아이템입니다.');
+                return;
+            }
+            const cost = prices[key] || 10000;
+            if (gameState.balance < cost) {
+                showToast(`${names[key]} 구매 비용(${formatWon(cost)})이 부족합니다.`);
+                return;
+            }
+            gameState.balance -= cost;
+            gameState.shopItems[key] = true;
+            saveGameState();
+            updateUI();
+            playTierResultSound('3st');
+            showToast(`🛍️ "${names[key]}"을(를) 구매했습니다!`);
+        }
+
+        function unlockSecretCasino() {
+            const input = document.getElementById('casinoPasswordInput');
+            const pw = (input ? input.value : '').trim();
+            const hintEl = document.getElementById('secretCasinoHint');
+            if (pw !== CASINO_SECRET_PW) {
+                playTierResultSound('miss');
+                if (hintEl) hintEl.textContent = '비밀번호가 틀렸습니다! 비밀번호 4자리(0721)를 입력하세요.';
+                showToast('❌ 지하 비밀 카지노 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+            gameState.casinoUnlocked = true;
+            if (input) input.value = '';
+            if (hintEl) hintEl.textContent = '지하 비밀 카지노 출입문이 열렸습니다!';
+            saveGameState();
+            updateUI();
+            playTierResultSound('2st');
+            showToast('🕶️ 지하 비밀 카지노에 입장했습니다!');
+        }
+
+        function spinSecretCasinoRoulette() {
+            if (!gameState.casinoUnlocked || gameState.isCasinoSpinning || gameState.isWorking) return;
+            if (gameState.balance < CASINO_ROULETTE_COST) {
+                showToast(`비밀 슬롯머신 1회 비용(${formatWon(CASINO_ROULETTE_COST)})이 부족합니다.`);
+                return;
+            }
+
+            gameState.balance -= CASINO_ROULETTE_COST;
+            gameState.isCasinoSpinning = true;
+            updateUI();
+
+            const statusEl = document.getElementById('casinoSlotStatusText');
+            if (statusEl) statusEl.textContent = '3개 릴 회전 중...';
+
+            const finalOutcome = pickWeightedPrize(CASINO_ROULETTE_REWARDS);
+            const reelEls = [0, 1, 2].map((i) => document.getElementById(`casinoReel${i}`));
+            reelEls.forEach((el) => el && el.classList.add('spinning'));
+
+            [0, 1, 2].forEach((idx) => {
+                casinoReelTimers[idx] = setInterval(() => {
+                    const sample = CASINO_ROULETTE_REWARDS[Math.floor(Math.random() * CASINO_ROULETTE_REWARDS.length)];
+                    const cell = reelEls[idx];
+                    if (cell) {
+                        cell.innerHTML = `<span class="slot-reel-emoji">${sample.reelEmoji}</span><span class="slot-reel-label">${sample.reelText}</span>`;
+                    }
+                }, 80);
+            });
+
+            [0, 1, 2].forEach((idx) => {
+                setTimeout(() => {
+                    if (casinoReelTimers[idx]) {
+                        clearInterval(casinoReelTimers[idx]);
+                        casinoReelTimers[idx] = null;
+                    }
+                    const cell = reelEls[idx];
+                    if (cell) {
+                        cell.classList.remove('spinning');
+                        cell.classList.add('locked');
+                        cell.innerHTML = `<span class="slot-reel-emoji">${finalOutcome.reelEmoji}</span><span class="slot-reel-label">${finalOutcome.reelText}</span>`;
+                    }
+                    if (idx === 2) {
+                        if (finalOutcome.cash > 0) {
+                            gameState.balance += finalOutcome.cash;
+                            gameState.totalWon += finalOutcome.cash;
+                        }
+                        const tagEl = document.getElementById('casinoResultTag');
+                        if (tagEl) tagEl.textContent = finalOutcome.reelText;
+                        if (statusEl) statusEl.textContent = `결과: ${finalOutcome.label}`;
+                        gameState.isCasinoSpinning = false;
+                        setTimeout(() => {
+                            reelEls.forEach((el) => el && el.classList.remove('locked'));
+                        }, 800);
+                        playTierResultSound(finalOutcome.tier);
+                        saveGameState();
+                        updateUI();
+                        showToast(`🎰 슬롯머신 결과: ${finalOutcome.label}`);
+                    }
+                }, 650 + idx * 420);
+            });
+        }
+
+        function renderRouletteOddsList() {
+            const el = document.getElementById('rouletteOddsList');
+            if (!el) return;
+            const total = ROULETTE_REWARDS.reduce((s, r) => s + r.weight, 0);
+            el.innerHTML = ROULETTE_REWARDS.map((r) => {
+                const rawPct = (r.weight / total) * 100;
+                const pct = Number.isInteger(rawPct) ? rawPct.toFixed(0) : rawPct.toFixed(1);
+                return `<div class="roulette-odds-item"><strong>${r.label}</strong><span>${pct}%</span></div>`;
+            }).join('');
+        }
+
+        function renderCasinoOddsList() {
+            const el = document.getElementById('casinoOddsList');
+            if (!el) return;
+            el.innerHTML = CASINO_ROULETTE_REWARDS.map((r) => (
+                `<div class="casino-odds-item"><strong>${r.label}</strong><span>${r.probText}</span></div>`
+            )).join('');
+        }
+
+        function renderAchievements() {
+            const box = document.getElementById('achievementsBox');
+            if (!box) return;
+            const list = [
+                { label: '첫 막노동 출근', done: gameState.workCount >= 1 },
+                { label: '복권 강화 달성', done: gameState.lotteryLevel >= 2 },
+                { label: '1조 회사 설립', done: Boolean(gameState.company) },
+                { label: '상점 아이템 보유', done: Boolean(gameState.shopItems && (gameState.shopItems.coin || gameState.shopItems.helmet || gameState.shopItems.clover)) }
+            ];
+            box.innerHTML = list.map((a) => (
+                `<span class="achieve-chip ${a.done ? 'done' : ''}">${a.done ? '✅' : '🔒'} ${a.label}</span>`
+            )).join('');
+        }
+
+        function updateUI() {
+            const tier = getCurrentTier();
+            const balEl = document.getElementById('balanceDisplay');
+            const priceEl = document.getElementById('ticketPriceDisplay');
+            const wonEl = document.getElementById('totalWonDisplay');
+            const tierBadge = document.getElementById('ticketTierBadge');
+            const ticketNoEl = document.getElementById('ticketNoDisplay');
+            const buyBtnLabel = document.getElementById('buyTicketBtnLabel');
+            const upgBtnLabel = document.getElementById('upgradeTicketBtnLabel');
+            const upgBtn = document.getElementById('upgradeTicketBtn');
+            const bulkBtnLabel = document.getElementById('bulkScratchBtnLabel');
+            const bulkBtn = document.getElementById('bulkScratchBtn');
+            const buyTicketBtn = document.getElementById('buyTicketBtn');
+
+            if (balEl) balEl.textContent = formatWon(gameState.balance);
+            if (priceEl) priceEl.textContent = gameState.freeTicketCount > 0 ? `무료 (${gameState.freeTicketCount}회)` : formatWon(tier.price);
+            if (wonEl) wonEl.textContent = formatWon(gameState.totalWon);
+            if (tierBadge) tierBadge.textContent = `Lv.${tier.level} ${tier.name} (${tier.mult}배)`;
+            if (ticketNoEl && gameState.currentTicket) ticketNoEl.textContent = gameState.currentTicket.serial;
+            if (buyBtnLabel) {
+                buyBtnLabel.textContent = gameState.freeTicketCount > 0
+                    ? `새 복권 무료 발급 (무료권 ${gameState.freeTicketCount}회)`
+                    : `새 복권 구매 (${formatWon(tier.price)})`;
+            }
+            const mustFinishTicket = Boolean(gameState.currentTicket && !gameState.revealed);
+            const canAffordTicket = gameState.freeTicketCount > 0 || gameState.balance >= tier.price;
+            if (buyTicketBtn) buyTicketBtn.disabled = isRapidScratching || gameState.isWorking || mustFinishTicket || !canAffordTicket;
+
+            if (upgBtnLabel && upgBtn) {
+                if (tier.upgradeCost && gameState.lotteryLevel < LOTTERY_TIERS.length) {
+                    const nextTier = LOTTERY_TIERS[gameState.lotteryLevel];
+                    upgBtnLabel.textContent = `더 비싼 복권으로 강화 (${formatWon(tier.upgradeCost)} · 상금 ${nextTier.mult}배)`;
+                    upgBtn.disabled = mustFinishTicket || gameState.balance < tier.upgradeCost;
+                } else {
+                    upgBtnLabel.textContent = '최고 등급 복권 달성 완료';
+                    upgBtn.disabled = true;
+                }
+            }
+
+            if (bulkBtnLabel && bulkBtn) {
+                const bulkCost = tier.price * 10;
+                bulkBtnLabel.textContent = `복권 10장 따다닥 연속 긁기 (${formatWon(bulkCost)})`;
+                bulkBtn.disabled = isRapidScratching || gameState.isWorking || gameState.balance < bulkCost;
+            }
+
+            [1, 2, 3, 4, 5].forEach((rank) => {
+                const baseMap = { 1: 1000000000, 2: 100000000, 3: 1000000, 4: 5000, 5: 1000 };
+                const el = document.getElementById(`prize${rank}Label`);
+                if (el) {
+                    const val = Math.floor(baseMap[rank] * tier.mult * getLuckyMultiplier());
+                    el.textContent = `${formatCompactKoreanWon(val)}원`;
+                }
+            });
+
+            const rescueBadge = document.getElementById('rescueBadge');
+            if (rescueBadge) {
+                const isLow = gameState.balance < tier.price;
+                rescueBadge.textContent = isLow ? '잔액 부족!' : '뒤주 안전';
+                rescueBadge.classList.toggle('urgent', isLow);
+            }
+
+            const empireBadge = document.getElementById('empireStatusBadge');
+            const empireText = document.getElementById('empireProgressText');
+            const empirePct = document.getElementById('empireProgressPct');
+            const empireFill = document.getElementById('empireProgressFill');
+            const foundingPanel = document.getElementById('foundingPanel');
+            const companyDash = document.getElementById('companyDashboard');
+
+            const pct = Math.min(100, (gameState.balance / COMPANY_FOUND_COST) * 100);
+            if (empireText) empireText.textContent = `보유 ${formatCompactKoreanWon(gameState.balance)}원 / 목표 1조 원`;
+            if (empirePct) empirePct.textContent = `${pct.toFixed(1)}%`;
+            if (empireFill) empireFill.style.width = `${pct}%`;
+
+            if (gameState.company) {
+                if (empireBadge) {
+                    empireBadge.textContent = '운영 중';
+                    empireBadge.classList.add('built');
+                }
+                if (foundingPanel) foundingPanel.style.display = 'none';
+                if (companyDash) companyDash.style.display = '';
+
+                const nameEl = document.getElementById('companyDisplayName');
+                const descEl = document.getElementById('companyBuildingDesc');
+                const incEl = document.getElementById('companyIncomeDisplay');
+                const pendEl = document.getElementById('companyPendingDisplay');
+                const upgCompLabel = document.getElementById('upgradeCompanyLabel');
+                const sellCompLabel = document.getElementById('sellCompanyLabel');
+                const dumpCompLabel = document.getElementById('dumpCompanyLabel');
+                const aiBtn = document.getElementById('buyAiDivBtn');
+                const spaceBtn = document.getElementById('buySpaceDivBtn');
+
+                if (nameEl) nameEl.textContent = gameState.company.name;
+                if (descEl) descEl.textContent = `1조 원 랜드마크 타워 · Lv.${gameState.company.level}`;
+                if (incEl) incEl.textContent = `+${formatCompactKoreanWon(gameState.company.incomePerTick)}원 / 5초`;
+                if (pendEl) pendEl.textContent = formatWon(gameState.company.pendingRevenue);
+                if (upgCompLabel) upgCompLabel.textContent = `사옥 강화 (${formatCompactKoreanWon(getCompanyUpgradeCost())}원)`;
+                if (sellCompLabel) sellCompLabel.textContent = `회사 매각 (${formatCompactKoreanWon(getCompanyValuation())}원)`;
+                if (dumpCompLabel) dumpCompLabel.textContent = `회사 바로 매도 (${formatCompactKoreanWon(Math.floor(getCompanyValuation() * 0.92))}원)`;
+
+                if (aiBtn) {
+                    const ownedAi = Boolean(gameState.company.divisions && gameState.company.divisions.ai);
+                    aiBtn.textContent = ownedAi ? '도입 완료' : '도입 (₩300억)';
+                    aiBtn.disabled = ownedAi || gameState.balance < 30000000000;
+                }
+                if (spaceBtn) {
+                    const ownedSpace = Boolean(gameState.company.divisions && gameState.company.divisions.space);
+                    spaceBtn.textContent = ownedSpace ? '도입 완료' : '도입 (₩800억)';
+                    spaceBtn.disabled = ownedSpace || gameState.balance < 80000000000;
+                }
+            } else {
+                if (empireBadge) {
+                    empireBadge.textContent = '설립 준비 중';
+                    empireBadge.classList.remove('built');
+                }
+                if (foundingPanel) foundingPanel.style.display = '';
+                if (companyDash) companyDash.style.display = 'none';
+            }
+
+            const staffDesc = document.getElementById('lotteryStaffDesc');
+            const staffBadge = document.getElementById('lotteryStaffStatusBadge');
+            const hireBtn = document.getElementById('hireStaffBtn');
+            const toggleBtn = document.getElementById('toggleStaffAutoBtn');
+            const nextStaffCost = getLotteryStaffUpgradeCost();
+
+            if (staffDesc) {
+                if (gameState.staff && gameState.staff.hired) {
+                    const sec = (getLotteryStaffIntervalMs() / 1000).toFixed(1);
+                    const batch = getLotteryStaffBatchCount();
+                    staffDesc.textContent = `Lv.${gameState.staff.level} · ${sec}초마다 ${batch}장 자동 스크래치 (누적 ${gameState.staff.scratchedCount}장 · +${formatCompactKoreanWon(gameState.staff.earnedTotal)}원)`;
+                } else {
+                    staffDesc.textContent = '미고용 · 고용 시 주기적으로 복권을 자동 긁어 당첨금을 정산합니다.';
+                }
+            }
+            if (staffBadge) {
+                staffBadge.textContent = gameState.staff && gameState.staff.hired
+                    ? (gameState.staff.active ? '자동 근무 중' : '근무 일시정지')
+                    : '대기 중';
+            }
+            if (hireBtn) {
+                hireBtn.textContent = gameState.staff && gameState.staff.hired
+                    ? `직원 업그레이드 (${formatWon(nextStaffCost)})`
+                    : `직원 고용 (${formatWon(nextStaffCost)})`;
+                hireBtn.disabled = gameState.balance < nextStaffCost;
+            }
+            if (toggleBtn) {
+                toggleBtn.disabled = !(gameState.staff && gameState.staff.hired);
+            }
+
+            const ownedCount = ['coin', 'helmet', 'clover'].filter((k) => gameState.shopItems && gameState.shopItems[k]).length;
+            const shopBadge = document.getElementById('shopOwnedBadge');
+            if (shopBadge) shopBadge.textContent = `보유 ${ownedCount}/3`;
+
+            const coinBtn = document.getElementById('buyItemCoinBtn');
+            const helmBtn = document.getElementById('buyItemHelmetBtn');
+            const clovBtn = document.getElementById('buyItemCloverBtn');
+            if (coinBtn) {
+                coinBtn.textContent = gameState.shopItems.coin ? '보유 중' : '구매 (₩10,000)';
+                coinBtn.disabled = gameState.shopItems.coin || gameState.balance < 10000;
+            }
+            if (helmBtn) {
+                helmBtn.textContent = gameState.shopItems.helmet ? '보유 중' : '구매 (₩15,000)';
+                helmBtn.disabled = gameState.shopItems.helmet || gameState.balance < 15000;
+            }
+            if (clovBtn) {
+                clovBtn.textContent = gameState.shopItems.clover ? '보유 중' : '구매 (₩100,000)';
+                clovBtn.disabled = gameState.shopItems.clover || gameState.balance < 100000;
+            }
+
+            const casinoSec = document.getElementById('secretCasinoSection');
+            if (casinoSec) casinoSec.style.display = gameState.casinoUnlocked ? '' : 'none';
+
+            const spinCasinoBtn = document.getElementById('spinCasinoBtn');
+            if (spinCasinoBtn) {
+                spinCasinoBtn.disabled = !gameState.casinoUnlocked || gameState.isCasinoSpinning || gameState.isWorking || gameState.balance < CASINO_ROULETTE_COST;
+            }
+
+            const pinStatusEl = document.getElementById('savePinStatusText');
+            const hasPin = Boolean(gameState.savePin);
+            if (pinStatusEl) {
+                pinStatusEl.textContent = hasPin
+                    ? `현재 지정된 저장 번호: [${gameState.savePin}] · 다른 기기나 새로고침 후에도 [${gameState.savePin}] 번호로 바로 입장할 수 있습니다.`
+                    : '저장할 번호(예: 1004, 7777)를 지정해 저장하고, 그 번호를 입력해 언제든 불러올 수 있습니다.';
+            }
+
+            renderCasinoOddsList();
+            renderRouletteOddsList();
+            renderAchievements();
+        }
+
+        function bindScratchEvents() {
+            scratchCanvas = document.getElementById('scratchCanvas');
+            if (!scratchCanvas) return;
+
+            const onDown = (e) => {
+                if (isRapidScratching || gameState.isWorking || gameState.revealed) return;
+                isPointerDown = true;
+                setScratchScrollLock(true);
+                lastPoint = getCanvasPoint(e);
+                scratchAtPoint(lastPoint);
+            };
+            const onMove = (e) => {
+                if (!gameState.currentTicket || gameState.revealed || isRapidScratching || gameState.isWorking) return;
+                const isTouchMove = Boolean(e.touches && e.touches.length > 0);
+                if (!isPointerDown && !isTouchMove && e.type === 'mousemove') {
+                    return;
+                }
+                if (isTouchMove && isPointerDown && e.cancelable) {
+                    e.preventDefault();
+                }
+                const pt = getCanvasPoint(e);
+                if (!lastPoint) lastPoint = pt;
+                scratchAtPoint(pt);
+                lastPoint = pt;
+            };
+            const onUp = () => {
+                isPointerDown = false;
+                lastPoint = null;
+                setScratchScrollLock(false);
+            };
+
+            scratchCanvas.addEventListener('mousedown', onDown);
+            scratchCanvas.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+
+            scratchCanvas.addEventListener('touchstart', onDown, { passive: true });
+            scratchCanvas.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onUp, { passive: true });
+            window.addEventListener('touchcancel', onUp, { passive: true });
+            window.addEventListener('blur', onUp);
+
+            window.addEventListener('resize', () => {
+                if (!gameState.currentTicket) return;
+                resizeCanvases();
+                drawPrizeBoard();
+                if (!gameState.revealed) {
+                    resetScratchFoil();
+                } else if (scratchCtx && scratchCanvas) {
+                    scratchCtx.globalCompositeOperation = 'destination-out';
+                    scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+                }
+            });
+        }
+
+        function initApp() {
+            try {
+                bindScratchEvents();
+                hydrateFromIndexedDb().then(() => {
+                    loadGameState();
+                    if (!gameState.currentTicket) {
+                        createNewTicket();
+                    }
+                    startCompanyTickLoop();
+                    startLotteryStaffLoop();
+                    updateUI();
+                    saveGameState();
+                });
+            } catch {
+                if (!gameState.currentTicket) {
+                    createNewTicket();
+                }
+                updateUI();
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            saveGameState();
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
+    </script>
+</body>
+</html>
